@@ -9,6 +9,7 @@ const D: Record<string, { en: string; hi: string }> = {
   daybook: { en: 'Day Book', hi: 'रोज़नामचा' }, recycle: { en: 'Recycle Bin', hi: 'रीसायकल बिन' }, reports: { en: 'Reports', hi: 'रिपोर्ट' },
   backup: { en: 'Backup & Restore', hi: 'बैकअप / रीस्टोर' }, security: { en: 'Security', hi: 'सुरक्षा' }, shop: { en: 'Shop profile', hi: 'दुकान प्रोफाइल' },
   language: { en: 'Language', hi: 'भाषा' }, support: { en: 'Contact support', hi: 'सहायता' }, update: { en: 'Check update', hi: 'अपडेट देखें' },
+  items: { en: 'Items', hi: 'आइटम' }, stock: { en: 'Stock & Wastage', hi: 'स्टॉक / खराबी' }, crates: { en: 'Crates', hi: 'क्रेट' }, supportTickets: { en: 'Help & Tickets', hi: 'मदद / टिकट' },
   delete: { en: 'Delete', hi: 'हटाएं' }, restore: { en: 'Restore', hi: 'वापस लाएं' }, share: { en: 'Share', hi: 'शेयर' }, deleteAccount: { en: 'Delete my account', hi: 'मेरा अकाउंट हटाएं' },
 };
 interface S { lang: Lang; hide: boolean; setLang: (l: Lang) => void; setHide: (h: boolean) => void; hydrate: () => Promise<void>; }

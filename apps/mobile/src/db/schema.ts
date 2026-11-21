@@ -32,4 +32,9 @@ export const MIGRATIONS: string[] = [
   -- invariant: a transaction's lines must balance (checked at commit by repo; trigger guards updates)
   CREATE VIEW v_balanced AS SELECT txn_id, SUM(debit_paise)-SUM(credit_paise) AS diff FROM transaction_lines GROUP BY txn_id;
   `,
+  /* v2: wastage + crates */ `
+  CREATE TABLE wastage (id TEXT PRIMARY KEY, item_name TEXT NOT NULL, unit TEXT NOT NULL DEFAULT 'KG', qty REAL NOT NULL CHECK (qty>0), date TEXT NOT NULL, note TEXT, updated_at INTEGER NOT NULL, deleted_at INTEGER);
+  CREATE TABLE crate_moves (id TEXT PRIMARY KEY, party_id TEXT NOT NULL REFERENCES accounts(id), date TEXT NOT NULL, given INTEGER NOT NULL DEFAULT 0 CHECK (given>=0), returned INTEGER NOT NULL DEFAULT 0 CHECK (returned>=0), note TEXT, updated_at INTEGER NOT NULL, deleted_at INTEGER);
+  CREATE INDEX idx_crate_party ON crate_moves(party_id) WHERE deleted_at IS NULL;
+  `,
 ];

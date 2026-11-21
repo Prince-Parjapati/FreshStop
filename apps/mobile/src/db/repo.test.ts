@@ -105,4 +105,29 @@ describe('ledger', () => {
     expect((await repo.lastRate(cust, 'Aloo'))?.rate_paise).toBe(2000);
     expect((await repo.counts()).vouchers).toBe(1);
   });
+  it('edit bill keeps voucher no, re-posts balances and stays balanced', async () => {
+    const r = await repo.createSale({ partyId: cust, date: '2026-04-10', lines: [line] });
+    const e = await repo.editBill(r.id, { partyId: cust, date: '2026-04-10', lines: [{ ...line, qty: 50 }, { ...line, itemName: 'Pyaz', qty: 10, ratePaise: 3000 }] });
+    expect(e.voucherNo).toBe(r.voucherNo);
+    // 50*2000=100000 +5% =5000 +1000 ; 10*3000=30000 +1500 +1000 => 100000+5000+1000+30000+1500+1000
+    expect(await repo.balance(cust)).toBe(50000 + 138500);
+    expect((await repo.transactions()).length).toBe(1);
+    expect((await repo.billItems(r.id)).length).toBe(2);
+    await expect(repo.editBill(r.id, { partyId: cust, date: '2026-04-10', lines: [] })).rejects.toThrow();
+    expect(await repo.balance(cust)).toBe(50000 + 138500); // failed edit rolled back
+  });
+  it('edit receipt', async () => {
+    const r = await repo.createCashVoucher({ kind: 'RECEIPT', partyId: cust, date: '2026-04-10', amountPaise: 10000, mode: 'CASH' });
+    await repo.editCashVoucher(r.id, { partyId: cust, date: '2026-04-10', amountPaise: 30000, mode: 'UPI' });
+    expect(await repo.balance(cust)).toBe(20000);
+  });
+  it('stock = bought - sold - wasted, crates balance', async () => {
+    await repo.createPurchase({ partyId: sup, date: '2026-04-10', lines: [{ ...line, qty: 100 }] });
+    await repo.createSale({ partyId: cust, date: '2026-04-10', lines: [{ ...line, qty: 60 }] });
+    await repo.addWastage({ itemName: 'Aloo', qty: 5, date: '2026-04-11' });
+    expect((await repo.stock())[0]).toMatchObject({ item_name: 'Aloo', bought: 100, sold: 60, wasted: 5, stock: 35 });
+    await repo.crateMove({ partyId: cust, date: '2026-04-10', given: 20 }); await repo.crateMove({ partyId: cust, date: '2026-04-12', returned: 8 });
+    expect((await repo.crateBalances())[0]).toMatchObject({ name: 'Ramesh', held: 12 });
+    await expect(repo.crateMove({ partyId: cust, date: '2026-04-10' })).rejects.toThrow();
+  });
 });

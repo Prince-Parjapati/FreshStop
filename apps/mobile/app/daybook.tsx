@@ -1,6 +1,6 @@
 import { useCallback, useState } from 'react';
 import { FlatList, Pressable, View } from 'react-native';
-import { Stack, useFocusEffect } from 'expo-router';
+import { Stack, useFocusEffect, useRouter } from 'expo-router';
 import { formatINR } from '@mandimart/shared';
 import { today, useRepo } from '../src/lib/useRepo';
 import { sharePdf } from '../src/lib/share';
@@ -12,7 +12,7 @@ import { useT } from '../src/i18n';
 
 const RANGES = [['Today', 0], ['Week', 6], ['Month', 29]] as const;
 export default function DayBook() {
-  const repo = useRepo(); const t = useT();
+  const repo = useRepo(); const t = useT(); const router = useRouter();
   const [days, setDays] = useState(0); const [rows, setRows] = useState<any[]>([]); const [sel, setSel] = useState<Set<string>>(new Set()); const [msg, setMsg] = useState('');
   const load = useCallback(async () => {
     if (!repo) return; const d = new Date(); d.setDate(d.getDate() - days);
@@ -38,6 +38,7 @@ export default function DayBook() {
             <Card style={{ borderColor: sel.has(r.id) ? '#16A34A' : undefined, borderWidth: sel.has(r.id) ? 2 : 1, gap: 4 }}>
               <T bold>{r.voucher_no} · {r.type}</T><T muted>{r.date} · {r.party_name ?? r.narration ?? ''}</T><T size="lg" bold>{formatINR(r.total_paise)}</T>
               <View style={{ flexDirection: 'row', gap: 8 }}><View style={{ flex: 1 }}><Button kind="ghost" label={t('share')} onPress={() => slip(r)} /></View><View style={{ flex: 1 }}><Button kind="ghost" label="WhatsApp" onPress={() => slip(r, true)} /></View></View>
+              {['SALE', 'PURCHASE', 'RECEIPT', 'PAYMENT'].includes(r.type) && <View style={{ flexDirection: 'row', gap: 8 }}><View style={{ flex: 1 }}><Button kind="ghost" label="Edit" onPress={() => router.push(`/(tabs)/entry?edit=${r.id}` as any)} /></View><View style={{ flex: 1 }}><Button kind="ghost" label="Duplicate" onPress={() => router.push(`/(tabs)/entry?dup=${r.id}` as any)} /></View></View>}
             </Card></Pressable>)} />
     </Screen>
   );

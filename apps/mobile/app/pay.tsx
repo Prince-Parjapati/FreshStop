@@ -9,6 +9,7 @@ import { Banner, Button, Card, Field, Screen, T } from '../src/ui/kit';
 export default function Pay() {
   const setGate = useApp((s) => s.setGate);
   const [st, setSt] = useState<{ profile?: any; plan?: any; settings: Record<string, any>; last?: any }>({ settings: {} });
+  const [code, setCode] = useState(''); const [quote, setQuote] = useState<{ amount: number; note?: string } | null>(null);
   const [utr, setUtr] = useState(''); const [payer, setPayer] = useState(''); const [err, setErr] = useState(''); const [busy, setBusy] = useState(false);
 
   const load = useCallback(async () => {
@@ -25,8 +26,13 @@ export default function Pay() {
   useEffect(() => { load(); const t = setInterval(load, 8000); return () => clearInterval(t); }, [load]);
 
   const { profile, plan, settings, last } = st;
-  const amount = plan?.price_paise ?? 0;
+  const amount = quote?.amount ?? plan?.price_paise ?? 0;
   const upi = `upi://pay?pa=${encodeURIComponent(settings.upi_id ?? '')}&pn=${encodeURIComponent(settings.upi_name ?? 'Mandi Khata')}&am=${(amount / 100).toFixed(2)}&cu=INR&tn=${encodeURIComponent(profile?.user_code ?? '')}`;
+  const applyCode = async () => {
+    const { data } = await supabase.rpc('quote_price', { p_code: code || null });
+    if (data?.ok) setQuote({ amount: data.amount_paise, note: code ? 'Discount applied' : undefined });
+    else { setQuote(null); setErr(data?.reason === 'INVALID_CODE' ? 'Invalid or expired code' : 'Could not apply code'); }
+  };
   const waiting = last?.status === 'SUBMITTED';
 
   const submit = async () => {
@@ -34,9 +40,9 @@ export default function Pay() {
     const r = paymentSubmitSchema.safeParse({ utr, payerName: payer, method: 'UPI', amountPaise: amount });
     if (!r.success) return setErr(r.error.issues[0]!.message);
     setBusy(true);
-    const { error } = await supabase.from('payment_requests').insert({ user_id: profile.id, plan_id: plan.id, amount_paise: amount, utr: r.data.utr.toUpperCase(), payer_name: r.data.payerName, method: 'UPI' });
+    const { error } = await supabase.from('payment_requests').insert({ user_id: profile.id, plan_id: plan.id, amount_paise: amount, discount_code: quote?.note ? code.trim().toUpperCase() : null, utr: r.data.utr.toUpperCase(), payer_name: r.data.payerName, method: 'UPI' });
     setBusy(false);
-    if (error) setErr(error.code === '23505' ? 'This UTR is already used.' : error.message); else load();
+    if (error) setErr(error.code === '23505' ? 'This UTR is already used.' : error.message.includes('mismatch') ? 'Price changed — tap Apply code again.' : error.message); else load();
   };
   return (
     <Screen><ScrollView contentContainerStyle={{ gap: 12, paddingTop: 40 }}>
@@ -50,6 +56,8 @@ export default function Pay() {
         <Card><T bold>Waiting for approval…</T><T muted>UTR {last.utr}. This page updates automatically.</T></Card>
       ) : (
         <>
+          <View style={{ flexDirection: 'row', gap: 8, alignItems: 'flex-end' }}><View style={{ flex: 1 }}><Field label="Discount code (optional)" autoCapitalize="characters" value={code} onChangeText={setCode} /></View><Button kind="ghost" label="Apply" onPress={applyCode} /></View>
+          {!!quote?.note && <Banner text={`${quote.note}: pay ${formatINR(amount, { decimals: false })}`} />}
           <Button label={`Pay ${formatINR(amount, { decimals: false })} via UPI`} onPress={() => Linking.openURL(upi)} disabled={!settings.upi_id} />
           <T muted>UPI ID: {settings.upi_id || '—'}</T>
           <Field label="UTR / Transaction ID" autoCapitalize="characters" value={utr} onChangeText={setUtr} />

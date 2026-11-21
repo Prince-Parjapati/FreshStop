@@ -14,6 +14,13 @@ const SYSTEM: [string, AccType][] = [['Cash', 'CASH'], ['Bank', 'BANK'], ['Sales
 export class Repo {
   constructor(private db: Db, private deviceId = 'local') {}
   now = () => Date.now();
+  private depth = 0;
+  /** Re-entrant transaction: only the outermost call opens/commits. */
+  private async atomic<T>(fn: () => Promise<T>): Promise<T> {
+    if (this.depth > 0) return fn();
+    this.depth++;
+    try { return await this.db.tx(fn); } finally { this.depth--; }
+  }
 
   async seedSystemAccounts() {
     for (const [name, type] of SYSTEM) {
@@ -56,11 +63,11 @@ export class Repo {
     return voucherNo(type, fy.short, r[0]!.value, co[0]?.voucher_prefix ? co[0].voucher_prefix + '-' + type[0] : undefined);
   }
 
-  private async post(t: { id: string; type: string; date: string; partyId?: string | null; narration?: string; total: number; prevBal?: number; mode?: string; refNo?: string; chequeDate?: string; cleared?: boolean },
+  private async post(t: { id: string; type: string; date: string; partyId?: string | null; narration?: string; total: number; prevBal?: number; mode?: string; refNo?: string; chequeDate?: string; cleared?: boolean; vno?: string },
     lines: { account: string; dr?: number; cr?: number }[], bills: BillLine[] = [], calc: ReturnType<typeof calcLine>[] = []) {
     const dr = lines.reduce((s, l) => s + (l.dr ?? 0), 0), cr = lines.reduce((s, l) => s + (l.cr ?? 0), 0);
     if (dr !== cr) throw new Error(`Unbalanced entry: Dr ${dr} != Cr ${cr}`);
-    const vno = await this.nextVoucher(t.type, t.date);
+    const vno = t.vno ?? (await this.nextVoucher(t.type, t.date));
     await this.db.run('INSERT INTO transactions(id,type,voucher_no,date,party_id,narration,total_paise,prev_balance_paise,mode,ref_no,cheque_date,cleared,updated_at,device_id) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)',
       [t.id, t.type, vno, t.date, t.partyId ?? null, t.narration ?? null, t.total, t.prevBal ?? null, t.mode ?? null, t.refNo ?? null, t.chequeDate ?? null, t.cleared === false ? 0 : 1, this.now(), this.deviceId]);
     for (const l of lines) if ((l.dr ?? 0) || (l.cr ?? 0))
@@ -81,33 +88,55 @@ export class Repo {
   async createPurchase(p: { partyId: string; date: string; lines: BillLine[]; narration?: string }) {
     return this.createBill('PURCHASE', p);
   }
-  private async createBill(type: 'SALE' | 'PURCHASE', p: { partyId: string; date: string; lines: BillLine[]; narration?: string }) {
+  /** Edit a bill in place: keeps voucher number, re-posts lines against current balance. */
+  async editBill(txnId: string, p: { partyId: string; date: string; lines: BillLine[]; narration?: string }) {
+    const old = (await this.db.all<any>('SELECT type FROM transactions WHERE id=? AND deleted_at IS NULL', [txnId]))[0];
+    if (!old || (old.type !== 'SALE' && old.type !== 'PURCHASE')) throw new Error('Not an editable bill');
+    return this.atomic(async () => {
+      await this.db.run('DELETE FROM transaction_lines WHERE txn_id=?', [txnId]); await this.db.run('DELETE FROM bill_items WHERE txn_id=?', [txnId]);
+      const vno = (await this.db.all<{ voucher_no: string }>('SELECT voucher_no FROM transactions WHERE id=?', [txnId]))[0]!.voucher_no;
+      await this.db.run('DELETE FROM transactions WHERE id=?', [txnId]);
+      const r = await this.createBill(old.type, p, txnId, vno);
+      return r;
+    });
+  }
+  async editCashVoucher(txnId: string, p: { partyId: string; date: string; amountPaise: number; mode: 'CASH' | 'BANK' | 'CHEQUE' | 'UPI' | 'NEFT'; refNo?: string; narration?: string }) {
+    const old = (await this.db.all<any>('SELECT type FROM transactions WHERE id=? AND deleted_at IS NULL', [txnId]))[0];
+    if (!old || (old.type !== 'RECEIPT' && old.type !== 'PAYMENT')) throw new Error('Not an editable voucher');
+    return this.atomic(async () => {
+      const vno = (await this.db.all<{ voucher_no: string }>('SELECT voucher_no FROM transactions WHERE id=?', [txnId]))[0]!.voucher_no;
+      await this.db.run('DELETE FROM transactions WHERE id=?', [txnId]); // lines cascade
+      return this.createCashVoucher({ kind: old.type, ...p }, txnId, vno);
+    });
+  }
+  private async createBill(type: 'SALE' | 'PURCHASE', p: { partyId: string; date: string; lines: BillLine[]; narration?: string }, reuseId?: string, reuseVno?: string) {
     if (!p.lines.length) throw new Error('No items');
+    if (p.lines.some((l) => !(l.qty > 0) || l.ratePaise < 0)) throw new Error('Invalid qty or rate');
     const calc = p.lines.map((l) => calcLine(type, l));
     const gross = calc.reduce((s, c) => s + c.gross, 0), com = calc.reduce((s, c) => s + c.commission, 0);
     const del = p.lines.reduce((s, l) => s + l.deliveryPaise, 0), net = calc.reduce((s, c) => s + c.net, 0);
-    return this.db.tx(async () => {
+    return this.atomic(async () => {
       const prev = await this.balance(p.partyId);
-      const id = uid();
+      const id = reuseId ?? uid();
       const lines = type === 'SALE'
         ? [{ account: p.partyId, dr: net }, { account: await this.sys('SALES'), cr: gross }, { account: await this.sys('COMMISSION'), cr: com }, { account: await this.sys('DELIVERY'), cr: del }]
         : [{ account: await this.sys('PURCHASE'), dr: gross }, { account: p.partyId, cr: net }, { account: await this.sys('COMMISSION'), cr: com }, { account: await this.sys('DELIVERY'), cr: del }];
-      return this.post({ id, type, date: p.date, partyId: p.partyId, narration: p.narration, total: net, prevBal: prev }, lines, p.lines, calc);
+      return this.post({ id, type, date: p.date, partyId: p.partyId, narration: p.narration, total: net, prevBal: prev, vno: reuseVno }, lines, p.lines, calc);
     });
   }
   /** RECEIPT: Dr Cash/Bank / Cr party. PAYMENT: Dr party / Cr Cash/Bank. */
-  async createCashVoucher(p: { kind: 'RECEIPT' | 'PAYMENT'; partyId: string; date: string; amountPaise: number; mode: 'CASH' | 'BANK' | 'CHEQUE' | 'UPI' | 'NEFT'; refNo?: string; chequeDate?: string; cleared?: boolean; narration?: string }) {
+  async createCashVoucher(p: { kind: 'RECEIPT' | 'PAYMENT'; partyId: string; date: string; amountPaise: number; mode: 'CASH' | 'BANK' | 'CHEQUE' | 'UPI' | 'NEFT'; refNo?: string; chequeDate?: string; cleared?: boolean; narration?: string }, reuseId?: string, reuseVno?: string) {
     if (p.amountPaise <= 0) throw new Error('Amount must be positive');
-    return this.db.tx(async () => {
+    return this.atomic(async () => {
       const prev = await this.balance(p.partyId);
       const cash = await this.sys(p.mode === 'CASH' ? 'CASH' : 'BANK');
       const lines = p.kind === 'RECEIPT' ? [{ account: cash, dr: p.amountPaise }, { account: p.partyId, cr: p.amountPaise }] : [{ account: p.partyId, dr: p.amountPaise }, { account: cash, cr: p.amountPaise }];
-      return this.post({ id: uid(), type: p.kind, date: p.date, partyId: p.partyId, total: p.amountPaise, prevBal: prev, mode: p.mode, refNo: p.refNo, chequeDate: p.chequeDate, cleared: p.cleared, narration: p.narration }, lines);
+      return this.post({ id: reuseId ?? uid(), type: p.kind, date: p.date, partyId: p.partyId, total: p.amountPaise, prevBal: prev, mode: p.mode, refNo: p.refNo, chequeDate: p.chequeDate, cleared: p.cleared, narration: p.narration, vno: reuseVno }, lines);
     });
   }
   /** Kharcha: Dr Expense / Cr Cash. */
   async createExpense(p: { date: string; amountPaise: number; category: string; mode?: 'CASH' | 'BANK' }) {
-    return this.db.tx(async () => this.post({ id: uid(), type: 'EXPENSE', date: p.date, total: p.amountPaise, narration: p.category, mode: p.mode ?? 'CASH' },
+    return this.atomic(async () => this.post({ id: uid(), type: 'EXPENSE', date: p.date, total: p.amountPaise, narration: p.category, mode: p.mode ?? 'CASH' },
       [{ account: await this.sys('EXPENSE'), dr: p.amountPaise }, { account: await this.sys(p.mode === 'BANK' ? 'BANK' : 'CASH'), cr: p.amountPaise }]));
   }
 
@@ -155,7 +184,7 @@ export class Repo {
   async saveCompany(c: { name: string; address?: string; phone?: string; gstin?: string; fyStartMonth?: number }) {
     await this.db.run('UPDATE company SET name=?, address=?, phone=?, gstin=?, fy_start_month=?, updated_at=? WHERE id=1', [c.name, c.address ?? null, c.phone ?? null, c.gstin ?? null, c.fyStartMonth ?? 4, this.now()]);
   }
-  static TABLES = ['company', 'accounts', 'items', 'transactions', 'transaction_lines', 'bill_items', 'counters'];
+  static TABLES = ['company', 'accounts', 'items', 'transactions', 'transaction_lines', 'bill_items', 'counters', 'wastage', 'crate_moves'];
   async exportAll() {
     const out: Record<string, any[]> = {};
     for (const t of Repo.TABLES) out[t] = await this.db.all(`SELECT * FROM ${t}`);
@@ -172,6 +201,33 @@ export class Repo {
         await this.db.run(`INSERT INTO ${t}(${keys.join(',')}) VALUES (${keys.map(() => '?').join(',')})`, keys.map((k) => row[k]));
       }
     });
+  }
+
+
+  // ---------- items, stock, wastage, crates ----------
+  async listItems() { return this.db.all<any>('SELECT * FROM items WHERE deleted_at IS NULL ORDER BY name'); }
+  async deleteItem(id: string) { await this.db.run('UPDATE items SET deleted_at=?, updated_at=? WHERE id=?', [this.now(), this.now(), id]); }
+  async addWastage(w: { itemName: string; unit?: string; qty: number; date: string; note?: string }) {
+    if (!(w.qty > 0)) throw new Error('Quantity must be positive');
+    await this.db.run('INSERT INTO wastage(id,item_name,unit,qty,date,note,updated_at) VALUES (?,?,?,?,?,?,?)', [uid(), w.itemName.trim(), w.unit ?? 'KG', w.qty, w.date, w.note ?? null, this.now()]);
+  }
+  /** Stock = purchased − sold − wasted, per item+unit (all-time, non-deleted). */
+  async stock() {
+    const rows = await this.db.all<{ item_name: string; unit: string; bought: number; sold: number; wasted: number; stock: number }>(`
+      WITH k AS (SELECT item_name, unit FROM bill_items UNION SELECT item_name, unit FROM wastage WHERE deleted_at IS NULL)
+      SELECT k.item_name, k.unit,
+        COALESCE((SELECT SUM(b.qty) FROM bill_items b JOIN transactions t ON t.id=b.txn_id WHERE t.type='PURCHASE' AND t.deleted_at IS NULL AND b.item_name=k.item_name AND b.unit=k.unit),0) bought,
+        COALESCE((SELECT SUM(b.qty) FROM bill_items b JOIN transactions t ON t.id=b.txn_id WHERE t.type='SALE' AND t.deleted_at IS NULL AND b.item_name=k.item_name AND b.unit=k.unit),0) sold,
+        COALESCE((SELECT SUM(w.qty) FROM wastage w WHERE w.deleted_at IS NULL AND w.item_name=k.item_name AND w.unit=k.unit),0) wasted,
+        0 stock FROM k ORDER BY k.item_name`);
+    return rows.map((x) => ({ ...x, stock: x.bought - x.sold - x.wasted }));
+  }
+  async crateMove(m: { partyId: string; date: string; given?: number; returned?: number; note?: string }) {
+    if (!((m.given ?? 0) > 0 || (m.returned ?? 0) > 0)) throw new Error('Enter crates given or returned');
+    await this.db.run('INSERT INTO crate_moves(id,party_id,date,given,returned,note,updated_at) VALUES (?,?,?,?,?,?,?)', [uid(), m.partyId, m.date, Math.floor(m.given ?? 0), Math.floor(m.returned ?? 0), m.note ?? null, this.now()]);
+  }
+  async crateBalances() {
+    return this.db.all<{ id: string; name: string; held: number }>(`SELECT a.id, a.name, SUM(c.given) - SUM(c.returned) held FROM crate_moves c JOIN accounts a ON a.id=c.party_id WHERE c.deleted_at IS NULL GROUP BY a.id HAVING held <> 0 ORDER BY held DESC`);
   }
 
   /** Ledger with running balance for an account. */

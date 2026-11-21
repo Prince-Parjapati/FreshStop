@@ -11,8 +11,10 @@ import Releases from './pages/Releases';
 import Announcements from './pages/Announcements';
 import Settings from './pages/Settings';
 import Audit from './pages/Audit';
+import Support from './pages/Support';
+import Codes from './pages/Codes';
 
-const nav = [['/', 'Dashboard'], ['/approvals', 'Approvals'], ['/users', 'Users'], ['/payments', 'Payments'], ['/announcements', 'Announcements'], ['/releases', 'Releases'], ['/settings', 'Settings'], ['/audit', 'Audit']] as const;
+const nav = [['/', 'Dashboard'], ['/approvals', 'Approvals'], ['/users', 'Users'], ['/payments', 'Payments'], ['/support', 'Support'], ['/codes', 'Discount codes'], ['/announcements', 'Announcements'], ['/releases', 'Releases'], ['/settings', 'Settings'], ['/audit', 'Audit']] as const;
 
 export default function App() {
   const [session, setSession] = useState<Session | null | undefined>(undefined);
@@ -48,6 +50,7 @@ export default function App() {
           <Route path="/" element={<Dashboard />} /><Route path="/approvals" element={<Approvals />} />
           <Route path="/users" element={<Users />} /><Route path="/payments" element={<Payments />} />
           <Route path="/announcements" element={<Announcements />} /><Route path="/releases" element={<Releases />} />
+          <Route path="/support" element={<Support />} /><Route path="/codes" element={<Codes />} />
           <Route path="/settings" element={<Settings />} /><Route path="/audit" element={<Audit />} />
           <Route path="*" element={<Navigate to="/" />} />
         </Routes>

@@ -24,6 +24,7 @@ export default function More() {
     <Screen style={{ paddingTop: 40 }}><ScrollView contentContainerStyle={{ gap: 10 }}>
       <T size="xl" bold>{t('more')}</T>
       <Button kind="ghost" label={t('daybook')} onPress={go('/daybook')} /><Button kind="ghost" label={t('reports')} onPress={go('/reports')} />
+      <Button kind="ghost" label={t('items')} onPress={go('/items')} /><Button kind="ghost" label={t('stock')} onPress={go('/stock')} /><Button kind="ghost" label={t('crates')} onPress={go('/crates')} /><Button kind="ghost" label={t('supportTickets')} onPress={go('/support')} />
       <Button kind="ghost" label={t('backup')} onPress={go('/backup')} /><Button kind="ghost" label={t('recycle')} onPress={go('/recycle')} />
       <Button kind="ghost" label={t('shop')} onPress={go('/shop')} /><Button kind="ghost" label={t('security')} onPress={go('/security')} />
       <Button kind="ghost" label={`${t('language')}: ${lang === 'hi' ? 'हिन्दी → English' : 'English → हिन्दी'}`} onPress={() => setLang(lang === 'hi' ? 'en' : 'hi')} />
