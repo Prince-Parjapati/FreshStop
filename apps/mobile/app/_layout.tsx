@@ -9,9 +9,11 @@ import { useApp } from '../src/lib/store';
 import { T, Screen } from '../src/ui/kit';
 import AppLock from '../src/ui/AppLock';
 import { useSettings } from '../src/i18n';
+import { useTheme } from '../src/ui/theme';
 
 const qc = new QueryClient();
 function Root() {
+  const { c } = useTheme();
   const [ready, setReady] = useState(false);
   const [authed, setAuthed] = useState(false);
   const { gate, setGate } = useApp();
@@ -41,7 +43,7 @@ function Root() {
   return (
     <QueryClientProvider client={qc}>
       <StatusBar style="auto" />
-      <AppLock><Stack screenOptions={{ headerShown: false }} /></AppLock>
+      <AppLock><Stack screenOptions={{ headerShown: false, headerShadowVisible: false, headerTintColor: c.text, headerStyle: { backgroundColor: c.bg }, headerTitleStyle: { fontWeight: '800', fontSize: 18 }, contentStyle: { backgroundColor: c.bg } }} /></AppLock>
     </QueryClientProvider>
   );
 }

@@ -1,8 +1,9 @@
 import { useCallback, useState } from 'react';
-import { FlatList, Pressable, TextInput, View } from 'react-native';
+import { FlatList, TextInput, View } from 'react-native';
 import { useFocusEffect, useRouter } from 'expo-router';
+import { Ionicons } from '@expo/vector-icons';
 import { useRepo } from '../../src/lib/useRepo';
-import { Amount, Button, Card, Screen, T } from '../../src/ui/kit';
+import { Amount, Button, Row, Screen, Segmented, T } from '../../src/ui/kit';
 import { useTheme } from '../../src/ui/theme';
 
 export default function Parties() {
@@ -11,15 +12,17 @@ export default function Parties() {
   const load = useCallback(async (s = q) => { if (repo) setList(await repo.listAccounts({ type: tab === 'ALL' ? undefined : tab, search: s })); }, [repo, tab, q]);
   useFocusEffect(useCallback(() => { load(); }, [load]));
   return (
-    <Screen style={{ paddingTop: 40 }}>
-      <View style={{ flexDirection: 'row', gap: 8, marginBottom: 8 }}>{(['ALL', 'CUSTOMER', 'SUPPLIER'] as const).map((k) => <View key={k} style={{ flex: 1 }}><Button kind={tab === k ? 'primary' : 'ghost'} label={k === 'ALL' ? 'All' : k === 'CUSTOMER' ? 'Customers' : 'Suppliers'} onPress={() => setTab(k)} /></View>)}</View>
-      <TextInput accessibilityLabel="Search" placeholder="Search by name or phone…" placeholderTextColor={c.muted} value={q} onChangeText={(v) => { setQ(v); load(v); }}
-        style={{ minHeight: 48, borderRadius: radius.md, borderWidth: 1, borderColor: c.border, backgroundColor: c.surface, color: c.text, paddingHorizontal: 12, fontSize: 16, marginBottom: 8 }} />
-      <Button label="+ Add party" onPress={() => router.push({ pathname: '/party-form', params: { type: tab === 'SUPPLIER' ? 'SUPPLIER' : 'CUSTOMER' } } as any)} />
-      <FlatList data={list} keyExtractor={(p) => p.id} initialNumToRender={20} windowSize={7} contentContainerStyle={{ gap: 8, paddingVertical: 8 }} ListEmptyComponent={<T muted>No parties found.</T>}
-        renderItem={({ item }) => <Pressable accessibilityRole="button" onPress={() => router.push(`/ledger/${item.id}` as any)} onLongPress={() => router.push({ pathname: '/party-form', params: { id: item.id } } as any)}>
-          <Card style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}><View style={{ flex: 1 }}><T bold>{item.name}{item.name_hi ? ` · ${item.name_hi}` : ''}</T><T size="xs" muted>{item.type === 'CUSTOMER' ? 'Customer' : 'Supplier'}{item.phone ? ' · ' + item.phone : ''}{item.city ? ' · ' + item.city : ''}</T></View><Amount paise={item.balance} bold /></Card></Pressable>} />
-      <T size="xs" muted>Tap = ledger · long-press = edit</T>
+    <Screen top>
+      <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}><T size="xxl" bold>Parties</T><View style={{ width: 130 }}><Button icon="person-add" label="Add" onPress={() => router.push({ pathname: '/party-form', params: { type: tab === 'SUPPLIER' ? 'SUPPLIER' : 'CUSTOMER' } } as any)} /></View></View>
+      <Segmented value={tab} onChange={setTab} options={[{ key: 'ALL', label: 'All' }, { key: 'CUSTOMER', label: 'Customers' }, { key: 'SUPPLIER', label: 'Suppliers' }]} />
+      <View style={{ marginVertical: 12, flexDirection: 'row', alignItems: 'center', backgroundColor: c.surface, borderRadius: radius.md, paddingHorizontal: 12, borderWidth: 1.5, borderColor: c.border }}>
+        <Ionicons name="search" size={20} color={c.muted} /><TextInput accessibilityLabel="Search parties" placeholder="Search name or phone" placeholderTextColor={c.muted} value={q} onChangeText={(v) => { setQ(v); load(v); }} style={{ flex: 1, minHeight: 48, color: c.text, fontSize: 16, paddingHorizontal: 8 }} />
+      </View>
+      <FlatList data={list} keyExtractor={(p) => p.id} initialNumToRender={20} windowSize={7} contentContainerStyle={{ gap: 10, paddingBottom: 110 }} showsVerticalScrollIndicator={false}
+        ListEmptyComponent={<View style={{ alignItems: 'center', padding: 32, gap: 8 }}><Ionicons name="people-outline" size={44} color={c.muted} /><T muted>No parties yet. Tap Add to create one.</T></View>}
+        renderItem={({ item }) => <Row icon={item.type === 'CUSTOMER' ? 'person' : 'leaf'} tint={item.type === 'CUSTOMER' ? c.primary : c.purple}
+          title={item.name} sub={[item.name_hi, item.type === 'CUSTOMER' ? 'Customer' : 'Supplier', item.phone, item.city].filter(Boolean).join(' · ')}
+          onPress={() => router.push(`/ledger/${item.id}` as any)} onLongPress={() => router.push({ pathname: '/party-form', params: { id: item.id } } as any)} right={<Amount paise={item.balance} bold />} />} />
     </Screen>
   );
 }

@@ -3,7 +3,7 @@ import { Pressable, ScrollView, Text, View } from 'react-native';
 import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
 import { evaluateCommissionRate, evaluateMath, formatINR, grossPaise, purchaseNet, saleNet, type PurchaseMode } from '@mandimart/shared';
 import { today, useRepo } from '../../src/lib/useRepo';
-import { Amount, Banner, Button, Card, Field, Screen, T } from '../../src/ui/kit';
+import { Amount, Banner, Button, Card, Chip, ChipRow, Field, Screen, T } from '../../src/ui/kit';
 import { DatePicker } from '../../src/ui/DatePicker';
 import { Picker } from '../../src/ui/Picker';
 import { useTheme } from '../../src/ui/theme';
@@ -105,15 +105,15 @@ export default function Entry() {
       if (k !== 'EXPENSE') router.push({ pathname: '/txn/[id]', params: { id } } as any);
     } catch (e: any) { setMsg({ t: e.message, err: true }); } finally { setSaving(false); }
   };
-  const chip = (k: Kind, l: string) => <Pressable key={k} accessibilityRole="button" disabled={!!editId} onPress={() => setKind(k)} style={{ paddingHorizontal: 14, minHeight: 44, justifyContent: 'center', borderRadius: 22, backgroundColor: kind === k ? c.primary : c.surface, borderWidth: 1, borderColor: c.border, opacity: editId && kind !== k ? 0.4 : 1 }}><Text style={{ color: kind === k ? '#fff' : c.text }}>{l}</Text></Pressable>;
+  const chip = (k: Kind, l: string) => <Chip key={k} label={l} on={kind === k} onPress={() => !editId && setKind(k)} />;
   const partyType = kind === 'PURCHASE' || kind === 'PAYMENT' ? 'SUPPLIER' : 'CUSTOMER';
   const partyOpts = parties.filter((p) => !editId || true).sort((a, b) => (a.type === partyType ? -1 : 1) - (b.type === partyType ? -1 : 1)).map((p) => ({ id: p.id, title: p.name_hi ? `${p.name} (${p.name_hi})` : p.name, sub: `${p.type === 'CUSTOMER' ? 'Customer' : 'Supplier'}${p.phone ? ' · ' + p.phone : ''}`, right: formatINR(Math.abs(p.balance)) + (p.balance > 0 ? ' Dr' : p.balance < 0 ? ' Cr' : '') }));
   const plus = (i: number, k: 'qty' | 'rate') => <Pressable accessibilityLabel={`Add plus to ${k}`} onPress={() => { const cur = lines[i]![k]; if (cur && !/[+\-*/]$/.test(cur)) setLine(i, k, cur + '+'); }} hitSlop={8}><Text style={{ color: c.primary, fontWeight: '700', fontSize: 18 }}>＋</Text></Pressable>;
   const hint = (s: string) => (/[+\-*/]/.test(s) ? ` = ${r2(evaluateMath(s))}` : '');
   return (
-    <Screen><ScrollView contentContainerStyle={{ gap: 12, paddingTop: 32, paddingBottom: 24 }} keyboardShouldPersistTaps="handled">
+    <Screen top><ScrollView contentContainerStyle={{ gap: 14, paddingBottom: 110 }} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
       <T size="xl" bold>{editId ? 'Edit entry' : t('entry')}</T>
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8 }}>{chip('SALE', 'Sale')}{chip('PURCHASE', 'Purchase')}{chip('RECEIPT', 'Receipt')}{chip('PAYMENT', 'Payment')}{chip('EXPENSE', 'Kharcha')}</ScrollView>
+      <ChipRow>{chip('SALE', 'Sale')}{chip('PURCHASE', 'Purchase')}{chip('RECEIPT', 'Receipt')}{chip('PAYMENT', 'Payment')}{chip('EXPENSE', 'Kharcha')}</ChipRow>
       <DatePicker label="Date" value={date} onChange={setDate} />
       {kind !== 'EXPENSE' && <>
         <Picker label={partyType === 'SUPPLIER' ? 'Supplier / Farmer' : 'Customer'} placeholder="Select party" value={party} options={partyOpts} onSelect={(o) => pickParty(o.id)} onAdd={(q) => router.push({ pathname: '/party-form', params: { type: partyType, name: q, back: '1' } } as any)} addLabel="+ New party" />
@@ -127,7 +127,7 @@ export default function Entry() {
               onSelect={(o) => { const m = items.find((x) => x.id === o.id); pickItem(i, m.name, m.unit, m.default_rate_paise); }}
               onAdd={async (q) => { if (!q) return; if (!items.some((x) => x.name.toLowerCase() === q.toLowerCase())) { await repo!.addItem({ name: q, unit: l.unit }); setItems(await repo!.listItems()); } pickItem(i, q); }} addLabel="+ New item" />
             {!!l.itemName && <T size="sm" muted>{l.itemName}</T>}
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 6 }}>{UNITS.map((u) => <Pressable key={u} onPress={() => patchLine(i, { unit: u })} style={{ paddingHorizontal: 12, minHeight: 40, justifyContent: 'center', borderRadius: 20, backgroundColor: l.unit === u ? c.primary : c.surface, borderWidth: 1, borderColor: c.border }}><Text style={{ color: l.unit === u ? '#fff' : c.text }}>{u}</Text></Pressable>)}</ScrollView>
+            <ChipRow>{UNITS.map((u) => <Chip key={u} label={u} on={l.unit === u} onPress={() => patchLine(i, { unit: u })} />)}</ChipRow>
             <View style={{ flexDirection: 'row', gap: 8 }}>
               <View style={{ flex: 1 }}><View style={{ flexDirection: 'row', justifyContent: 'space-between' }}><T size="sm" muted>Qty{hint(l.qty)}</T>{plus(i, 'qty')}</View><Field label=" " accessibilityLabel="Quantity" keyboardType="numbers-and-punctuation" value={l.qty} onChangeText={(v) => setLine(i, 'qty', clean(v))} placeholder="0" /></View>
               <View style={{ flex: 1 }}><View style={{ flexDirection: 'row', justifyContent: 'space-between' }}><T size="sm" muted>Rate ₹{hint(l.rate)}</T>{plus(i, 'rate')}</View><Field label=" " accessibilityLabel="Rate" keyboardType="numbers-and-punctuation" value={l.rate} onChangeText={(v) => setLine(i, 'rate', clean(v))} placeholder="0" /></View>
@@ -141,13 +141,13 @@ export default function Entry() {
             {lines.length > 1 && <Button kind="ghost" label="Remove line" onPress={() => setLines((ls) => ls.filter((_, j) => j !== i))} />}
           </Card>))}
         <Button kind="ghost" label="+ Add item" onPress={() => setLines((ls) => [...ls, blank(ls[ls.length - 1]?.com)])} />
-        <Card style={{ gap: 2 }}><T muted>Gross {formatINR(gross)}</T><T size="lg" bold>{kind === 'SALE' ? 'Bill total' : pmode === 'ADD' ? 'Purchase total' : 'Net payable'}: {formatINR(net)}</T>
-          {!!party && <><T size="sm" muted>Balance after this bill</T><Amount paise={after} bold /></>}</Card>
+        <Card style={{ gap: 2, backgroundColor: c.hero }}><T size="xs" color="#FFFFFFB3">Gross {formatINR(gross)}</T><T size="xs" color="#FFFFFFB3">{kind === 'SALE' ? 'Bill total' : pmode === 'ADD' ? 'Purchase total' : 'Net payable'}</T><T size="xxl" bold color="#fff">{formatINR(net)}</T>
+          {!!party && <T size="sm" color="#FFFFFFCC">Balance after: {formatINR(Math.abs(after))} {after > 0 ? 'Dr' : after < 0 ? 'Cr' : ''}</T>}</Card>
         {overLimit && <Banner text={`Credit limit ${formatINR(party_.credit_limit_paise)} will be exceeded.`} />}
       </> : <>
         <Field label="Amount ₹" keyboardType="decimal-pad" value={amt} onChangeText={(v) => setAmt(clean(v))} />
         {kind === 'EXPENSE' ? <Field label="Category (rent, labour, transport…)" value={cat} onChangeText={setCat} /> : <>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 6 }}>{MODES.map((m) => <Pressable key={m} onPress={() => setMode(m)} style={{ paddingHorizontal: 14, minHeight: 44, justifyContent: 'center', borderRadius: 22, backgroundColor: mode === m ? c.primary : c.surface, borderWidth: 1, borderColor: c.border }}><Text style={{ color: mode === m ? '#fff' : c.text }}>{m}</Text></Pressable>)}</ScrollView>
+          <ChipRow>{MODES.map((m) => <Chip key={m} label={m} on={mode === m} onPress={() => setMode(m)} />)}</ChipRow>
           {mode !== 'CASH' && <Field label="Bank name" value={bank} onChangeText={setBank} />}
           {mode === 'CHEQUE' && <><Field label="Cheque no." keyboardType="number-pad" value={chequeNo} onChangeText={setChequeNo} /><DatePicker label="Cheque date" value={chequeDate} onChange={setChequeDate} /></>}
           {(mode === 'UPI' || mode === 'NEFT' || mode === 'BANK') && <Field label="UTR / Reference no." autoCapitalize="characters" value={utr} onChangeText={setUtr} />}

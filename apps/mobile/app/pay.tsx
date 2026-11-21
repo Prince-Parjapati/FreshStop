@@ -45,7 +45,7 @@ export default function Pay() {
     if (error) setErr(error.code === '23505' ? 'This UTR is already used.' : error.message.includes('mismatch') ? 'Price changed — tap Apply code again.' : error.message); else load();
   };
   return (
-    <Screen><ScrollView contentContainerStyle={{ gap: 12, paddingTop: 40 }}>
+    <Screen top><ScrollView contentContainerStyle={{ gap: 12, paddingTop: 40 }}>
       <T size="xl" bold>Activate Mandi Khata</T>
       <Card>
         <T muted>Lifetime licence</T><T size="xxl" bold>{formatINR(amount, { decimals: false })}</T>

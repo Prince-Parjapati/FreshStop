@@ -10,7 +10,7 @@ const MSG: Record<string, string> = {
 export default function Locked() {
   const { gate, setGate } = useApp();
   return (
-    <Screen style={{ justifyContent: 'center', gap: 16 }}>
+    <Screen top style={{ justifyContent: 'center', gap: 16 }}>
       <T size="xl" bold>App locked</T><T muted>{MSG[gate?.kind ?? ''] ?? 'Verification needed.'}</T>
       <Button label="Retry" onPress={async () => setGate(await checkLicence())} />
       <Button kind="ghost" label="Export my data (coming soon)" onPress={() => {}} disabled />

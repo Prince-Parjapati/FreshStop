@@ -27,7 +27,7 @@ export default function Auth() {
     } finally { setBusy(false); }
   };
   return (
-    <Screen>
+    <Screen top>
       <ScrollView contentContainerStyle={{ gap: 12, paddingTop: 48 }} keyboardShouldPersistTaps="handled">
         <T size="xxl" bold>Mandi Khata</T>
         <T muted>{mode === 'login' ? 'Login to continue' : 'Create your shop account'}</T>

@@ -44,7 +44,7 @@ export default function PartyForm() {
     <Screen style={{ paddingTop: 8 }}><Stack.Screen options={{ headerShown: true, title: id ? 'Edit party' : 'New party' }} />
       <ScrollView contentContainerStyle={{ gap: 12, paddingBottom: 32 }} keyboardShouldPersistTaps="handled">
         <View style={{ flexDirection: 'row', gap: 8 }}><View style={{ flex: 1 }}><Button kind={type === 'CUSTOMER' ? 'primary' : 'ghost'} label="Customer (buyer)" onPress={() => setType('CUSTOMER')} /></View><View style={{ flex: 1 }}><Button kind={type === 'SUPPLIER' ? 'primary' : 'ghost'} label="Supplier (farmer)" onPress={() => setType('SUPPLIER')} /></View></View>
-        <Button kind="ghost" label="📇 Pick from contacts" onPress={pickContact} />
+        <Button kind="ghost" icon="person-add-outline" label="Pick from contacts" onPress={pickContact} />
         <Field label="Name *" value={f.name} onChangeText={set('name')} />
         <Field label="Name (Hindi)" value={f.nameHi} onChangeText={set('nameHi')} /><Button kind="ghost" label="Auto-translate name to Hindi" onPress={tr} />
         <Field label="Phone" keyboardType="phone-pad" value={f.phone} onChangeText={set('phone')} />

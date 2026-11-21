@@ -7,12 +7,13 @@ import { makePdf, printHtml, sendPdfToWhatsApp, sharePdf } from '../../src/lib/s
 import { PdfPreview } from '../../src/ui/PdfPreview';
 import { slipHtml, whatsappMessage, type Lang } from '../../src/lib/slip';
 import { publicSettings } from '../../src/lib/shop';
-import { Amount, Banner, Button, Card, Screen, T } from '../../src/ui/kit';
+import { Amount, Banner, Button, Card, Screen, Segmented, T } from '../../src/ui/kit';
+import { useTheme } from '../../src/ui/theme';
 import { fmtDMY } from '../../src/ui/DatePicker';
 
 const TITLE: Record<string, string> = { SALE: 'Sale', PURCHASE: 'Purchase', RECEIPT: 'Receipt', PAYMENT: 'Payment', EXPENSE: 'Kharcha' };
 export default function TxnDetail() {
-  const { id } = useLocalSearchParams<{ id: string }>(); const repo = useRepo(); const router = useRouter();
+  const { id } = useLocalSearchParams<{ id: string }>(); const repo = useRepo(); const router = useRouter(); const { c } = useTheme();
   const [tx, setTx] = useState<any>(null); const [items, setItems] = useState<any[]>([]); const [prev, setPrev] = useState(0); const [lang, setLang] = useState<Lang>('en'); const [msg, setMsg] = useState(''); const [html, setHtml] = useState(''); const [sending, setSending] = useState(false);
   useFocusEffect(useCallback(() => {
     if (!repo || !id) return;
@@ -38,24 +39,27 @@ export default function TxnDetail() {
   const closing = tx.type === 'RECEIPT' ? prev - tx.total_paise : tx.type === 'PAYMENT' ? prev + tx.total_paise : tx.type === 'PURCHASE' ? prev - tx.total_paise : tx.type === 'SALE' ? prev + tx.total_paise : prev;
   return (
     <Screen><Stack.Screen options={{ headerShown: true, title: `${TITLE[tx.type] ?? tx.type} ${tx.voucher_no}` }} />
-      <ScrollView contentContainerStyle={{ gap: 12, paddingBottom: 24 }}>
-        <Card style={{ gap: 4 }}><T bold size="lg">{tx.party_name ?? tx.narration ?? 'Kharcha'}</T>{!!tx.party_name_hi && <T muted>{tx.party_name_hi}</T>}<T muted>{tx.voucher_no} · {fmtDMY(tx.date)}{tx.party_phone ? ' · ' + tx.party_phone : ''}</T></Card>
-        {bill && items.map((i, n) => (
-          <Card key={i.id ?? n} style={{ gap: 2 }}><T bold>{n + 1}. {i.item_name}</T><T muted>{i.qty} {i.unit} × {formatINR(i.rate_paise)} = {formatINR(i.gross_paise)}</T>
-            {(i.commission_paise > 0 || i.delivery_paise > 0) && <T size="sm" muted>{i.commission_paise > 0 ? `Commission ${formatINR(i.commission_paise)}  ` : ''}{i.delivery_paise > 0 ? `Delivery ${formatINR(i.delivery_paise)}` : ''}</T>}</Card>))}
-        <Card style={{ gap: 4 }}>
-          <T size="xl" bold>{formatINR(tx.total_paise)}</T>
-          {!bill && tx.mode && <T muted>{tx.mode}{tx.bank_name ? ' · ' + tx.bank_name : ''}{tx.cheque_no ? ' · Cheque #' + tx.cheque_no : ''}{tx.ref_no ? ' · UTR ' + tx.ref_no : ''}{tx.cheque_date ? ' · ' + fmtDMY(tx.cheque_date) : ''}{tx.cleared === 0 ? ' · Not cleared' : ''}</T>}
-          {!!tx.narration && <T muted>Narration: {tx.narration}</T>}
+      <ScrollView contentContainerStyle={{ gap: 14, paddingBottom: 32 }} showsVerticalScrollIndicator={false}>
+        <Card style={{ backgroundColor: c.hero, gap: 4 }}>
+          <T size="xs" color="#FFFFFFB3">{TITLE[tx.type] ?? tx.type} · {tx.voucher_no} · {fmtDMY(tx.date)}</T>
+          <T size="xl" bold color="#fff">{tx.party_name ?? tx.narration ?? 'Kharcha'}{tx.party_name_hi ? ` · ${tx.party_name_hi}` : ''}</T>
+          <T size="xxl" bold color="#fff">{formatINR(tx.total_paise)}</T>
+          {!!tx.party_phone && <T size="xs" color="#FFFFFFB3">{tx.party_phone}</T>}
         </Card>
-        {!!tx.party_id && <Card style={{ gap: 2 }}><T size="sm" muted>Previous balance</T><Amount paise={prev} /><T size="sm" muted>{bill ? 'Total balance' : 'Remaining balance'}</T><Amount paise={closing} bold size="lg" /></Card>}
+        {bill && <Card style={{ gap: 12 }}>{items.map((i, n) => (
+          <View key={i.id ?? n} style={{ flexDirection: 'row', justifyContent: 'space-between', gap: 8, paddingBottom: 10, borderBottomWidth: n < items.length - 1 ? 1 : 0, borderBottomColor: c.border }}>
+            <View style={{ flex: 1 }}><T bold>{i.item_name}</T><T size="sm" muted>{i.qty} {i.unit} × {formatINR(i.rate_paise)}</T>{(i.commission_paise > 0 || i.delivery_paise > 0) && <T size="xs" muted>{i.commission_paise > 0 ? `Commission ${formatINR(i.commission_paise)}  ` : ''}{i.delivery_paise > 0 ? `Delivery ${formatINR(i.delivery_paise)}` : ''}</T>}</View>
+            <T bold>{formatINR(i.gross_paise)}</T></View>))}</Card>}
+        {!bill && !!tx.mode && <Card style={{ gap: 4 }}><T bold>{tx.mode}</T><T size="sm" muted>{[tx.bank_name, tx.cheque_no ? 'Cheque #' + tx.cheque_no : '', tx.ref_no ? 'UTR ' + tx.ref_no : '', tx.cheque_date ? fmtDMY(tx.cheque_date) : '', tx.cleared === 0 ? 'Not cleared' : ''].filter(Boolean).join(' · ')}</T></Card>}
+        {!!tx.narration && tx.party_name && <Card><T size="xs" muted>Narration</T><T>{tx.narration}</T></Card>}
+        {!!tx.party_id && <Card style={{ flexDirection: 'row' }}><View style={{ flex: 1 }}><T size="xs" muted>Previous balance</T><Amount paise={prev} bold /></View><View style={{ flex: 1 }}><T size="xs" muted>{bill ? 'Total balance' : 'Remaining balance'}</T><Amount paise={closing} bold /></View></Card>}
         {!!msg && <Banner tone="error" text={msg} />}
-        <View style={{ flexDirection: 'row', gap: 8 }}><View style={{ flex: 1 }}><Button kind={lang === 'en' ? 'primary' : 'ghost'} label="English" onPress={() => setLang('en')} /></View><View style={{ flex: 1 }}><Button kind={lang === 'hi' ? 'primary' : 'ghost'} label="हिन्दी" onPress={() => setLang('hi')} /></View></View>
-        <Button label="Send PDF on WhatsApp" onPress={() => act('send')} loading={sending} />
-        <View style={{ flexDirection: 'row', gap: 8 }}><View style={{ flex: 1 }}><Button kind="ghost" label="Preview" onPress={() => act('preview')} /></View><View style={{ flex: 1 }}><Button kind="ghost" label="Share PDF" onPress={() => act('pdf')} /></View><View style={{ flex: 1 }}><Button kind="ghost" label="Print" onPress={() => act('print')} /></View></View>
+        <Segmented value={lang} onChange={setLang} options={[{ key: 'en', label: 'English' }, { key: 'hi', label: 'हिन्दी' }]} />
+        <Button icon="logo-whatsapp" label="Send PDF on WhatsApp" onPress={() => act('send')} loading={sending} />
+        <View style={{ flexDirection: 'row', gap: 8 }}><View style={{ flex: 1 }}><Button kind="ghost" icon="eye" label="Preview" onPress={() => act('preview')} /></View><View style={{ flex: 1 }}><Button kind="ghost" icon="share-outline" label="Share" onPress={() => act('pdf')} /></View><View style={{ flex: 1 }}><Button kind="ghost" icon="print" label="Print" onPress={() => act('print')} /></View></View>
         <PdfPreview html={html} visible={!!html} onClose={() => setHtml('')} sending={sending} onSend={() => act('send')} onShare={() => act('pdf')} onPrint={() => act('print')} />
-        {editable && <View style={{ flexDirection: 'row', gap: 8 }}><View style={{ flex: 1 }}><Button kind="ghost" label="Edit" onPress={() => router.push({ pathname: '/(tabs)/entry', params: { edit: id } } as any)} /></View><View style={{ flex: 1 }}><Button kind="ghost" label="Duplicate" onPress={() => router.push({ pathname: '/(tabs)/entry', params: { dup: id } } as any)} /></View></View>}
-        <Button kind="danger" label="Delete" onPress={del} />
+        {editable && <View style={{ flexDirection: 'row', gap: 8 }}><View style={{ flex: 1 }}><Button kind="ghost" icon="create" label="Edit" onPress={() => router.push({ pathname: '/(tabs)/entry', params: { edit: id } } as any)} /></View><View style={{ flex: 1 }}><Button kind="ghost" icon="copy" label="Duplicate" onPress={() => router.push({ pathname: '/(tabs)/entry', params: { dup: id } } as any)} /></View></View>}
+        <Button kind="danger" icon="trash" label="Delete" onPress={del} />
       </ScrollView></Screen>
   );
 }

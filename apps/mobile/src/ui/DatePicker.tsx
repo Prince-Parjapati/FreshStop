@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { Modal, Pressable, Text, View } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from './theme';
 import { Button } from './kit';
 
@@ -21,8 +22,8 @@ export function DatePicker({ label, value, onChange }: { label: string; value: s
     <View style={{ gap: 4 }}>
       <Text style={{ color: c.muted, fontSize: 13 }}>{label}</Text>
       <Pressable accessibilityRole="button" accessibilityLabel={`${label}: ${fmtDMY(value)}`} onPress={() => { setY(+base.slice(0, 4)); setM(+base.slice(5, 7) - 1); setOpen(true); }}
-        style={{ minHeight: 48, borderRadius: radius.md, borderWidth: 1, borderColor: c.border, backgroundColor: c.surface, paddingHorizontal: 12, justifyContent: 'center' }}>
-        <Text style={{ color: c.text, fontSize: 16 }}>📅  {fmtDMY(value) || 'Select date'}</Text>
+        style={{ minHeight: 48, borderRadius: radius.md, borderWidth: 1.5, borderColor: c.border, backgroundColor: c.surface, paddingHorizontal: 14, justifyContent: 'center' }}>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}><Ionicons name="calendar-outline" size={20} color={c.muted} accessible={false} /><Text style={{ color: c.text, fontSize: 16 }}>{fmtDMY(value) || 'Select date'}</Text></View>
       </Pressable>
       <Modal visible={open} transparent animationType="fade" onRequestClose={() => setOpen(false)}>
         <Pressable style={{ flex: 1, backgroundColor: '#0008', justifyContent: 'center', padding: 24 }} onPress={() => setOpen(false)}>

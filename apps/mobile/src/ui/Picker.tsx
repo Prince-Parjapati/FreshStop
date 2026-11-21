@@ -15,7 +15,7 @@ export function Picker({ label, placeholder, value, options, onSelect, onAdd, ad
     <View style={{ gap: 4 }}>
       <Text style={{ color: c.muted, fontSize: 13 }}>{label}</Text>
       <Pressable accessibilityRole="button" accessibilityLabel={label} onPress={() => { setQ(''); setOpen(true); }}
-        style={{ minHeight: 48, borderRadius: radius.md, borderWidth: 1, borderColor: c.border, backgroundColor: c.surface, paddingHorizontal: 12, justifyContent: 'center', flexDirection: 'row', alignItems: 'center' }}>
+        style={{ minHeight: 48, borderRadius: radius.md, borderWidth: 1.5, borderColor: c.border, backgroundColor: c.surface, paddingHorizontal: 14, justifyContent: 'center', flexDirection: 'row', alignItems: 'center' }}>
         <Text numberOfLines={1} style={{ flex: 1, color: sel ? c.text : c.muted, fontSize: 16 }}>{sel ? sel.title : placeholder}</Text><Text style={{ color: c.muted }}>▾</Text>
       </Pressable>
       <Modal visible={open} animationType="slide" onRequestClose={() => setOpen(false)}>

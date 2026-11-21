@@ -10,6 +10,7 @@
     "test": "vitest run"
   },
   "dependencies": {
+    "@expo/vector-icons": "^15.0.3",
     "@mandimart/shared": "*",
     "@noble/ciphers": "^1.3.0",
     "@noble/ed25519": "^2.1.0",

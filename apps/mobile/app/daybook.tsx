@@ -1,26 +1,26 @@
 import { useCallback, useState } from 'react';
-import { FlatList, Pressable, View } from 'react-native';
+import { FlatList, View } from 'react-native';
 import { Stack, useFocusEffect, useRouter } from 'expo-router';
 import { formatINR } from '@mandimart/shared';
 import { today, useRepo } from '../src/lib/useRepo';
-import { Card, Screen, T } from '../src/ui/kit';
+import { Card, Empty, Row, Screen, T } from '../src/ui/kit';
 import { DatePicker, fmtDMY } from '../src/ui/DatePicker';
+import { useTheme } from '../src/ui/theme';
 import { useT } from '../src/i18n';
 
-const COLOR: Record<string, string> = { SALE: '#16A34A', RECEIPT: '#0EA5E9', PAYMENT: '#F59E0B', PURCHASE: '#8B5CF6', EXPENSE: '#DC2626' };
+const META: Record<string, [any, string]> = { SALE: ['cart', '#0F8A4F'], PURCHASE: ['basket', '#7C3AED'], RECEIPT: ['arrow-down-circle', '#0284C7'], PAYMENT: ['arrow-up-circle', '#F59E0B'], EXPENSE: ['wallet', '#D92D20'] };
 export default function DayBook() {
-  const repo = useRepo(); const t = useT(); const router = useRouter(); const [date, setDate] = useState(today()); const [d, setD] = useState<any>(null);
+  const repo = useRepo(); const t = useT(); const router = useRouter(); const { c } = useTheme(); const [date, setDate] = useState(today()); const [d, setD] = useState<any>(null);
   useFocusEffect(useCallback(() => { repo?.dayBook(date).then(setD); }, [repo, date]));
+  const ok = d && d.difference === 0;
   return (
-    <Screen style={{ paddingTop: 8 }}><Stack.Screen options={{ headerShown: true, title: t('daybook') }} />
+    <Screen><Stack.Screen options={{ headerShown: true, title: t('daybook') }} />
       <DatePicker label="Date" value={date} onChange={setDate} />
-      {d && <><Card style={{ marginVertical: 8, gap: 2 }}>
-        <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}><T muted>Total Debit</T><T bold>{formatINR(d.totalDebit)}</T></View>
-        <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}><T muted>Total Credit</T><T bold>{formatINR(d.totalCredit)}</T></View>
-        <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}><T muted>Difference</T><T bold color={d.difference === 0 ? '#16A34A' : '#DC2626'}>{formatINR(Math.abs(d.difference))}{d.difference === 0 ? ' ✓' : ' ✗'}</T></View></Card>
-        <FlatList data={d.rows} keyExtractor={(r: any) => r.id} contentContainerStyle={{ gap: 8, paddingBottom: 16 }} ListEmptyComponent={<T muted>No entries for {fmtDMY(date)}.</T>}
-          renderItem={({ item: r }: any) => <Pressable accessibilityRole="button" onPress={() => r.type !== 'EXPENSE' && router.push({ pathname: '/txn/[id]', params: { id: r.id } } as any)}>
-            <Card style={{ gap: 2, borderLeftWidth: 4, borderLeftColor: COLOR[r.type] ?? '#999' }}><View style={{ flexDirection: 'row', justifyContent: 'space-between' }}><T bold>{r.party_name ?? r.narration ?? r.type}</T><T bold>{formatINR(r.total_paise)}</T></View><T size="xs" muted>{r.voucher_no} · {r.type}{r.mode ? ' · ' + r.mode : ''}</T></Card></Pressable>} /></>}
+      {d && <><Card style={{ marginVertical: 12, backgroundColor: c.hero, gap: 10 }}>
+        <View style={{ flexDirection: 'row' }}><View style={{ flex: 1 }}><T size="xs" color="#FFFFFFB3">Total Debit</T><T size="lg" bold color="#fff">{formatINR(d.totalDebit)}</T></View><View style={{ flex: 1 }}><T size="xs" color="#FFFFFFB3">Total Credit</T><T size="lg" bold color="#fff">{formatINR(d.totalCredit)}</T></View></View>
+        <T size="sm" bold color={ok ? '#86EFAC' : '#FCA5A5'}>{ok ? '✓ Books balanced' : `✗ Difference ${formatINR(Math.abs(d.difference))}`}</T></Card>
+        <FlatList data={d.rows} keyExtractor={(r: any) => r.id} contentContainerStyle={{ gap: 10, paddingBottom: 40 }} ListEmptyComponent={<Empty text={`No entries for ${fmtDMY(date)}.`} />}
+          renderItem={({ item: r }: any) => <Row icon={(META[r.type] ?? META.SALE!)[0]} tint={(META[r.type] ?? META.SALE!)[1]} title={r.party_name ?? r.narration ?? r.type} sub={`${r.voucher_no} · ${r.type}${r.mode ? ' · ' + r.mode : ''}`} onPress={() => r.type !== 'EXPENSE' && router.push({ pathname: '/txn/[id]', params: { id: r.id } } as any)} right={<T bold>{formatINR(r.total_paise)}</T>} />} /></>}
     </Screen>
   );
 }
