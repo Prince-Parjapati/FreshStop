@@ -33,9 +33,14 @@ export interface BillInput { gross: Paise; commissionPct: number; delivery: Pais
 export function saleNet({ gross, commissionPct, delivery }: BillInput): Paise {
   return gross + commissionPaise(gross, commissionPct) + delivery;
 }
-/** Purchase (farmer settlement): net payable = gross - commission - delivery. */
-export function purchaseNet({ gross, commissionPct, delivery }: BillInput): Paise {
-  return gross - commissionPaise(gross, commissionPct) - delivery;
+export type PurchaseMode = 'ADD' | 'DEDUCT';
+/**
+ * Purchase from supplier. ADD (default, as in the original MandiMart): payable = gross + commission + delivery.
+ * DEDUCT (farmer patti): payable = gross - commission - delivery.
+ */
+export function purchaseNet({ gross, commissionPct, delivery }: BillInput, mode: PurchaseMode = 'ADD'): Paise {
+  const c = commissionPaise(gross, commissionPct);
+  return mode === 'ADD' ? gross + c + delivery : gross - c - delivery;
 }
 
 const ONES = ['', 'One', 'Two', 'Three', 'Four', 'Five', 'Six', 'Seven', 'Eight', 'Nine', 'Ten', 'Eleven', 'Twelve', 'Thirteen', 'Fourteen', 'Fifteen', 'Sixteen', 'Seventeen', 'Eighteen', 'Nineteen'];
@@ -56,4 +61,36 @@ export function amountInWords(p: Paise): string {
   if (r) parts.push(below1000(r));
   const paise = Math.abs(p) % 100;
   return parts.join(' ') + ' Rupees' + (paise ? ' and ' + below100(paise) + ' Paise' : '') + ' Only';
+}
+
+/**
+ * Calculator-style field evaluation ("10+20", "5*10", "50/2"). Trailing operators are ignored while typing.
+ * Safe: only digits and + - * / ( ) . are accepted and evaluated by a tiny parser (no eval).
+ */
+export function evaluateMath(expr: string | number | null | undefined): number {
+  if (expr === null || expr === undefined) return 0;
+  if (typeof expr === 'number') return Number.isFinite(expr) ? expr : 0;
+  const cleaned = expr.replace(/[^0-9.+\-*/()]/g, '').replace(/[+\-*/]+$/, '');
+  if (!cleaned) return 0;
+  let i = 0;
+  const peek = () => cleaned[i];
+  const num = (): number => {
+    if (peek() === '(') { i++; const v = add(); if (peek() === ')') i++; return v; }
+    if (peek() === '-') { i++; return -num(); }
+    let j = i; while (j < cleaned.length && /[0-9.]/.test(cleaned[j]!)) j++;
+    const v = parseFloat(cleaned.slice(i, j)); i = j; return Number.isFinite(v) ? v : 0;
+  };
+  const mul = (): number => { let v = num(); while (peek() === '*' || peek() === '/') { const o = cleaned[i++]; const r = num(); v = o === '*' ? v * r : r === 0 ? 0 : v / r; } return v; };
+  const add = (): number => { let v = mul(); while (peek() === '+' || peek() === '-') { const o = cleaned[i++]; const r = mul(); v = o === '+' ? v + r : v - r; } return v; };
+  const out = add();
+  return Number.isFinite(out) ? Math.round(out * 1000) / 1000 : 0;
+}
+/** Original-app commission expression: "50+20" means successive percentages (50% then 20% => 60%). Plain "5" is 5%. */
+export function evaluateCommissionRate(str: string): number {
+  if (!str) return 0;
+  const parts = str.split('+').map((p) => parseFloat(p.replace(/[^0-9.]/g, ''))).filter((n) => !isNaN(n) && n > 0);
+  if (!parts.length) return 0;
+  if (parts.length === 1) return parts[0]!;
+  const remaining = parts.reduce((r, p) => r * (1 - p / 100), 1);
+  return Math.round((1 - remaining) * 10000) / 100;
 }

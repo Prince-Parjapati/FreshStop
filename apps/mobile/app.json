@@ -12,6 +12,12 @@
       "expo-secure-store",
       "expo-sqlite",
       [
+        "expo-contacts",
+        {
+          "contactsPermission": "Mandi Khata reads a contact only when you tap 'Pick from contacts' to fill a party's name and phone. Contacts are never uploaded."
+        }
+      ],
+      [
         "expo-splash-screen",
         {
           "image": "./assets/splash-icon.png",

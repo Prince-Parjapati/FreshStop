@@ -7,7 +7,8 @@ export function financialYear(date: Date, fyStartMonth = 4): { start: Date; end:
   const a = String(startYear), b = String(startYear + 1);
   return { start, end, label: `${a}-${b}`, short: a.slice(2) + b.slice(2) };
 }
-const PREFIX: Record<string, string> = { SALE: 'S', PURCHASE: 'P', RECEIPT: 'R', PAYMENT: 'PM', JOURNAL: 'J', CONTRA: 'C', EXPENSE: 'E' };
-export function voucherNo(type: string, fyShort: string, seq: number, prefix?: string): string {
-  return `${prefix ?? PREFIX[type] ?? 'V'}-${fyShort}-${String(seq).padStart(4, '0')}`;
+export const VOUCHER_PREFIX: Record<string, string> = { SALE: 'SL', PURCHASE: 'PU', RECEIPT: 'RC', PAYMENT: 'PY', JOURNAL: 'JV', CONTRA: 'CT', EXPENSE: 'EX' };
+/** Same format as the original MandiMart: SL-2025-00001 (FY start year, 5-digit sequence). */
+export function voucherNo(type: string, fyStartYear: number, seq: number, prefix?: string): string {
+  return `${prefix ?? VOUCHER_PREFIX[type] ?? 'VC'}-${fyStartYear}-${String(seq).padStart(5, '0')}`;
 }

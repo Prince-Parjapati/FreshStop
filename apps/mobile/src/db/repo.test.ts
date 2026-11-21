@@ -32,7 +32,7 @@ const line = { itemName: 'Aloo', qty: 100, unit: 'KG', ratePaise: 2000, commissi
 describe('ledger', () => {
   it('sale posts balanced entry and updates party balance', async () => {
     const r = await repo.createSale({ partyId: cust, date: '2026-04-10', lines: [line] });
-    expect(r.voucherNo).toBe('S-2627-0001');
+    expect(r.voucherNo).toBe('SL-2026-00001');
     expect(await repo.balance(cust)).toBe(261000); // 50000 + 200000 + 10000 + 1000
   });
   it('receipt reduces receivable; farmer purchase + payment settles', async () => {
@@ -40,8 +40,8 @@ describe('ledger', () => {
     await repo.createCashVoucher({ kind: 'RECEIPT', partyId: cust, date: '2026-04-11', amountPaise: 100000, mode: 'CASH' });
     expect(await repo.balance(cust)).toBe(161000);
     await repo.createPurchase({ partyId: sup, date: '2026-04-10', lines: [line] });
-    expect(await repo.balance(sup)).toBe(-189000);
-    await repo.createCashVoucher({ kind: 'PAYMENT', partyId: sup, date: '2026-04-12', amountPaise: 189000, mode: 'UPI' });
+    expect(await repo.balance(sup)).toBe(-211000);
+    await repo.createCashVoucher({ kind: 'PAYMENT', partyId: sup, date: '2026-04-12', amountPaise: 211000, mode: 'UPI' });
     expect(await repo.balance(sup)).toBe(0);
   });
   it('soft delete / restore affects balance', async () => {
@@ -80,7 +80,7 @@ describe('ledger', () => {
     const a = await repo.createSale({ partyId: cust, date: '2026-04-10', lines: [line] });
     const b = await repo.createSale({ partyId: cust, date: '2026-04-10', lines: [line] });
     const c = await repo.createSale({ partyId: cust, date: '2027-04-10', lines: [line] });
-    expect([a.voucherNo, b.voucherNo, c.voucherNo]).toEqual(['S-2627-0001', 'S-2627-0002', 'S-2728-0001']);
+    expect([a.voucherNo, b.voucherNo, c.voucherNo]).toEqual(['SL-2026-00001', 'SL-2026-00002', 'SL-2027-00001']);
   });
   it('trial balance balances, P&L, item sales', async () => {
     await repo.createSale({ partyId: cust, date: '2026-04-10', lines: [line] });
@@ -89,7 +89,7 @@ describe('ledger', () => {
     const tb = await repo.trialBalance('2026-04-30');
     expect(tb.totalDr - tb.totalCr).toBe(50000); // difference equals the one-sided customer opening balance
     const pl = await repo.profitLoss('2026-04-01', '2026-04-30');
-    expect(pl).toMatchObject({ sales: 200000, purchases: 200000, commission: 20000, delivery: 2000, expenses: 5000, net: 17000 });
+    expect(pl).toMatchObject({ sales: 200000, purchases: 211000, commission: 10000, delivery: 1000, expenses: 5000, net: -5000 });
     expect((await repo.itemWiseSales('2026-04-01', '2026-04-30'))[0]).toMatchObject({ item_name: 'Aloo', qty: 100 });
   });
   it('backup round-trips and restores identical balances', async () => {
@@ -129,5 +129,46 @@ describe('ledger', () => {
     await repo.crateMove({ partyId: cust, date: '2026-04-10', given: 20 }); await repo.crateMove({ partyId: cust, date: '2026-04-12', returned: 8 });
     expect((await repo.crateBalances())[0]).toMatchObject({ name: 'Ramesh', held: 12 });
     await expect(repo.crateMove({ partyId: cust, date: '2026-04-10' })).rejects.toThrow();
+  });
+  it('patti (DEDUCT) mode pays farmer gross minus commission and delivery', async () => {
+    await (repo as any).db.run("UPDATE company SET purchase_mode='DEDUCT' WHERE id=1");
+    await repo.createPurchase({ partyId: sup, date: '2026-04-10', lines: [line] });
+    expect(await repo.balance(sup)).toBe(-189000);
+    const tb = await repo.trialBalance('2026-04-30'); expect(tb.totalCr).toBeGreaterThan(0);
+  });
+  it('previous balance before an entry and day book totals', async () => {
+    const a = await repo.createSale({ partyId: cust, date: '2026-04-10', lines: [line] });
+    const b = await repo.createCashVoucher({ kind: 'RECEIPT', partyId: cust, date: '2026-04-10', amountPaise: 100000, mode: 'CASH' });
+    expect(await repo.balanceBefore(a.id)).toBe(50000);
+    expect(await repo.balanceBefore(b.id)).toBe(261000);
+    const d = await repo.dayBook('2026-04-10');
+    expect(d.rows.length).toBe(2); expect(d.difference).toBe(0); expect(d.totalDebit).toBe(d.totalCredit);
+  });
+  it('supplier payables aging + receivable search', async () => {
+    await repo.createPurchase({ partyId: sup, date: '2026-04-05', lines: [line] });
+    const pay = await repo.outstanding('2026-04-10', 'SUPPLIER');
+    expect(pay[0]).toMatchObject({ name: 'Farmer', total: 211000, b0_30: 211000 });
+    expect((await repo.outstanding('2026-04-10', 'CUSTOMER', 'ram'))[0]?.name).toBe('Ramesh');
+    expect(await repo.outstanding('2026-04-10', 'CUSTOMER', 'zzz')).toEqual([]);
+  });
+  it('party CRUD with soft delete, restore, full fields and search', async () => {
+    const id = await repo.addAccount({ name: 'Suresh  Kumar', nameHi: 'सुरेश', type: 'CUSTOMER', phone: '9000000001', city: 'Hisar', gstin: '06AAAAA0000A1Z5', openingPaise: -2500, commissionPct: 4, creditDays: 15 });
+    expect((await repo.getAccount(id)).name).toBe('Suresh Kumar');
+    await repo.updateAccount(id, { name: 'Suresh K', type: 'CUSTOMER', phone: '9000000001', openingPaise: 0, bankName: 'SBI' });
+    expect((await repo.getAccount(id)).bank_name).toBe('SBI');
+    expect((await repo.listAccounts({ search: 'सुरेश' })).length).toBe(0); // nameHi cleared by update
+    expect((await repo.listAccounts({ search: '9000000001' })).length).toBe(1);
+    await repo.deleteAccount(id); expect((await repo.listAccounts({ type: 'CUSTOMER' })).some((a: any) => a.id === id)).toBe(false);
+    expect((await repo.listAccounts({ deleted: true })).length).toBe(1);
+    await repo.restoreAccount(id); expect((await repo.listAccounts({ search: 'Suresh' })).length).toBe(1);
+  });
+  it('cheque + UTR details are stored; items with HSN/GST', async () => {
+    const r = await repo.createCashVoucher({ kind: 'RECEIPT', partyId: cust, date: '2026-04-10', amountPaise: 5000, mode: 'CHEQUE', chequeNo: '123456', chequeDate: '2026-04-20', bankName: 'HDFC', cleared: false });
+    const t = await repo.getTransaction(r.id);
+    expect(t).toMatchObject({ cheque_no: '123456', bank_name: 'HDFC', cheque_date: '2026-04-20', cleared: 0 });
+    const iid = await repo.addItem({ name: 'Tomato', nameHi: 'टमाटर', unit: 'CRATE', ratePaise: 1500, hsn: '0702', gstRate: 0, category: 'Vegetable' });
+    await repo.updateItem(iid, { name: 'Tomato', unit: 'KG', ratePaise: 1800 });
+    expect((await repo.getItem(iid)).default_rate_paise).toBe(1800);
+    expect((await repo.listItems('tom')).length).toBe(1);
   });
 });

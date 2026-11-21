@@ -23,7 +23,8 @@ export default function More() {
   return (
     <Screen style={{ paddingTop: 40 }}><ScrollView contentContainerStyle={{ gap: 10 }}>
       <T size="xl" bold>{t('more')}</T>
-      <Button kind="ghost" label={t('daybook')} onPress={go('/daybook')} /><Button kind="ghost" label={t('reports')} onPress={go('/reports')} />
+      <T size="sm" muted>Transactions</T><Button kind="ghost" label="Sales / बिक्री" onPress={go('/list/sales')} /><Button kind="ghost" label="Purchases / खरीद" onPress={go('/list/purchases')} /><Button kind="ghost" label="Receipts / जमा" onPress={go('/list/receipts')} /><Button kind="ghost" label="Payments / भुगतान" onPress={go('/list/payments')} />
+      <T size="sm" muted>Books</T><Button kind="ghost" label={t('daybook')} onPress={go('/daybook')} /><Button kind="ghost" label="Outstanding (aging)" onPress={go('/outstanding')} /><Button kind="ghost" label={t('reports')} onPress={go('/reports')} />
       <Button kind="ghost" label={t('items')} onPress={go('/items')} /><Button kind="ghost" label={t('stock')} onPress={go('/stock')} /><Button kind="ghost" label={t('crates')} onPress={go('/crates')} /><Button kind="ghost" label={t('supportTickets')} onPress={go('/support')} />
       <Button kind="ghost" label={t('backup')} onPress={go('/backup')} /><Button kind="ghost" label={t('recycle')} onPress={go('/recycle')} />
       <Button kind="ghost" label={t('shop')} onPress={go('/shop')} /><Button kind="ghost" label={t('security')} onPress={go('/security')} />

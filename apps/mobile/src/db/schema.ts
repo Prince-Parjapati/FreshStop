@@ -37,4 +37,22 @@ export const MIGRATIONS: string[] = [
   CREATE TABLE crate_moves (id TEXT PRIMARY KEY, party_id TEXT NOT NULL REFERENCES accounts(id), date TEXT NOT NULL, given INTEGER NOT NULL DEFAULT 0 CHECK (given>=0), returned INTEGER NOT NULL DEFAULT 0 CHECK (returned>=0), note TEXT, updated_at INTEGER NOT NULL, deleted_at INTEGER);
   CREATE INDEX idx_crate_party ON crate_moves(party_id) WHERE deleted_at IS NULL;
   `,
+  /* v3: parity with original MandiMart fields */ `
+  ALTER TABLE accounts ADD COLUMN address TEXT;
+  ALTER TABLE accounts ADD COLUMN city TEXT;
+  ALTER TABLE accounts ADD COLUMN gstin TEXT;
+  ALTER TABLE accounts ADD COLUMN pan TEXT;
+  ALTER TABLE accounts ADD COLUMN bank_name TEXT;
+  ALTER TABLE accounts ADD COLUMN bank_account_no TEXT;
+  ALTER TABLE accounts ADD COLUMN bank_ifsc TEXT;
+  ALTER TABLE items ADD COLUMN hsn_code TEXT;
+  ALTER TABLE items ADD COLUMN gst_rate REAL NOT NULL DEFAULT 0;
+  ALTER TABLE items ADD COLUMN category TEXT;
+  ALTER TABLE company ADD COLUMN city TEXT;
+  ALTER TABLE company ADD COLUMN state TEXT;
+  ALTER TABLE company ADD COLUMN pan TEXT;
+  ALTER TABLE company ADD COLUMN purchase_mode TEXT NOT NULL DEFAULT 'ADD';
+  ALTER TABLE transactions ADD COLUMN bank_name TEXT;
+  ALTER TABLE transactions ADD COLUMN cheque_no TEXT;
+  `,
 ];

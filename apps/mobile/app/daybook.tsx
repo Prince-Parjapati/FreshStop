@@ -3,43 +3,24 @@ import { FlatList, Pressable, View } from 'react-native';
 import { Stack, useFocusEffect, useRouter } from 'expo-router';
 import { formatINR } from '@mandimart/shared';
 import { today, useRepo } from '../src/lib/useRepo';
-import { printHtml, sharePdf } from '../src/lib/share';
-import { slipHtml, waLink } from '../src/lib/slip';
-import { publicSettings } from '../src/lib/shop';
-import { Banner, Button, Card, Screen, T } from '../src/ui/kit';
-import { Linking } from 'react-native';
+import { Card, Screen, T } from '../src/ui/kit';
+import { DatePicker, fmtDMY } from '../src/ui/DatePicker';
 import { useT } from '../src/i18n';
 
-const RANGES = [['Today', 0], ['Week', 6], ['Month', 29]] as const;
+const COLOR: Record<string, string> = { SALE: '#16A34A', RECEIPT: '#0EA5E9', PAYMENT: '#F59E0B', PURCHASE: '#8B5CF6', EXPENSE: '#DC2626' };
 export default function DayBook() {
-  const repo = useRepo(); const t = useT(); const router = useRouter();
-  const [days, setDays] = useState(0); const [rows, setRows] = useState<any[]>([]); const [sel, setSel] = useState<Set<string>>(new Set()); const [msg, setMsg] = useState('');
-  const load = useCallback(async () => {
-    if (!repo) return; const d = new Date(); d.setDate(d.getDate() - days);
-    setRows(await repo.transactions({ from: d.toISOString().slice(0, 10), to: today(), limit: 200 }));
-  }, [repo, days]);
-  useFocusEffect(useCallback(() => { load(); }, [load]));
-  const slip = async (r: any, wa = false, print = false) => {
-    const co = await repo!.company(); const s = await publicSettings(); const items = await repo!.billItems(r.id);
-    const html = slipHtml({ shop: { name: co?.name, address: co?.address, phone: co?.phone, upi: s.upi_id }, txn: r, items, party: r.party_name ?? '', prevBalance: r.prev_balance_paise });
-    if (print) await printHtml(html); else if (wa) Linking.openURL(waLink(r.party_phone, `${r.voucher_no} ${r.party_name}: ${formatINR(r.total_paise)}`)); else await sharePdf(html, r.voucher_no);
-  };
-  const del = async () => { for (const id of sel) await repo!.softDelete(id); setSel(new Set()); setMsg(`${sel.size} moved to Recycle Bin (kept 30 days)`); load(); };
+  const repo = useRepo(); const t = useT(); const router = useRouter(); const [date, setDate] = useState(today()); const [d, setD] = useState<any>(null);
+  useFocusEffect(useCallback(() => { repo?.dayBook(date).then(setD); }, [repo, date]));
   return (
-    <Screen style={{ paddingTop: 40 }}>
-      <Stack.Screen options={{ headerShown: true, title: t('daybook') }} />
-      <View style={{ flexDirection: 'row', gap: 8, marginBottom: 8 }}>{RANGES.map(([l, d]) => <View key={l} style={{ flex: 1 }}><Button kind={days === d ? 'primary' : 'ghost'} label={l} onPress={() => setDays(d)} /></View>)}</View>
-      {!!msg && <Banner text={msg} />}
-      {sel.size > 0 && <Button kind="danger" label={`${t('delete')} (${sel.size})`} onPress={del} />}
-      <FlatList data={rows} keyExtractor={(r) => r.id} contentContainerStyle={{ gap: 8, paddingVertical: 8 }} initialNumToRender={20} windowSize={7}
-        ListEmptyComponent={<T muted>No entries.</T>}
-        renderItem={({ item: r }) => (
-          <Pressable onLongPress={() => setSel(new Set(sel).add(r.id))} onPress={() => sel.size && setSel((p) => { const n = new Set(p); n.has(r.id) ? n.delete(r.id) : n.add(r.id); return n; })}>
-            <Card style={{ borderColor: sel.has(r.id) ? '#16A34A' : undefined, borderWidth: sel.has(r.id) ? 2 : 1, gap: 4 }}>
-              <T bold>{r.voucher_no} · {r.type}</T><T muted>{r.date} · {r.party_name ?? r.narration ?? ''}</T><T size="lg" bold>{formatINR(r.total_paise)}</T>
-              <View style={{ flexDirection: 'row', gap: 8 }}><View style={{ flex: 1 }}><Button kind="ghost" label={t('share')} onPress={() => slip(r)} /></View><View style={{ flex: 1 }}><Button kind="ghost" label="WhatsApp" onPress={() => slip(r, true)} /></View><View style={{ flex: 1 }}><Button kind="ghost" label="Print" onPress={() => slip(r, false, true)} /></View></View>
-              {['SALE', 'PURCHASE', 'RECEIPT', 'PAYMENT'].includes(r.type) && <View style={{ flexDirection: 'row', gap: 8 }}><View style={{ flex: 1 }}><Button kind="ghost" label="Edit" onPress={() => router.push(`/(tabs)/entry?edit=${r.id}` as any)} /></View><View style={{ flex: 1 }}><Button kind="ghost" label="Duplicate" onPress={() => router.push(`/(tabs)/entry?dup=${r.id}` as any)} /></View></View>}
-            </Card></Pressable>)} />
+    <Screen style={{ paddingTop: 8 }}><Stack.Screen options={{ headerShown: true, title: t('daybook') }} />
+      <DatePicker label="Date" value={date} onChange={setDate} />
+      {d && <><Card style={{ marginVertical: 8, gap: 2 }}>
+        <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}><T muted>Total Debit</T><T bold>{formatINR(d.totalDebit)}</T></View>
+        <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}><T muted>Total Credit</T><T bold>{formatINR(d.totalCredit)}</T></View>
+        <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}><T muted>Difference</T><T bold color={d.difference === 0 ? '#16A34A' : '#DC2626'}>{formatINR(Math.abs(d.difference))}{d.difference === 0 ? ' ✓' : ' ✗'}</T></View></Card>
+        <FlatList data={d.rows} keyExtractor={(r: any) => r.id} contentContainerStyle={{ gap: 8, paddingBottom: 16 }} ListEmptyComponent={<T muted>No entries for {fmtDMY(date)}.</T>}
+          renderItem={({ item: r }: any) => <Pressable accessibilityRole="button" onPress={() => r.type !== 'EXPENSE' && router.push({ pathname: '/txn/[id]', params: { id: r.id } } as any)}>
+            <Card style={{ gap: 2, borderLeftWidth: 4, borderLeftColor: COLOR[r.type] ?? '#999' }}><View style={{ flexDirection: 'row', justifyContent: 'space-between' }}><T bold>{r.party_name ?? r.narration ?? r.type}</T><T bold>{formatINR(r.total_paise)}</T></View><T size="xs" muted>{r.voucher_no} · {r.type}{r.mode ? ' · ' + r.mode : ''}</T></Card></Pressable>} /></>}
     </Screen>
   );
 }
