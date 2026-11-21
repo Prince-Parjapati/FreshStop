@@ -26,7 +26,7 @@ export default function Pay() {
 
   const { profile, plan, settings, last } = st;
   const amount = plan?.price_paise ?? 0;
-  const upi = `upi://pay?pa=${encodeURIComponent(settings.upi_id ?? '')}&pn=${encodeURIComponent(settings.upi_name ?? 'MandiMart')}&am=${(amount / 100).toFixed(2)}&cu=INR&tn=${encodeURIComponent(profile?.user_code ?? '')}`;
+  const upi = `upi://pay?pa=${encodeURIComponent(settings.upi_id ?? '')}&pn=${encodeURIComponent(settings.upi_name ?? 'Mandi Khata')}&am=${(amount / 100).toFixed(2)}&cu=INR&tn=${encodeURIComponent(profile?.user_code ?? '')}`;
   const waiting = last?.status === 'SUBMITTED';
 
   const submit = async () => {
@@ -40,7 +40,7 @@ export default function Pay() {
   };
   return (
     <Screen><ScrollView contentContainerStyle={{ gap: 12, paddingTop: 40 }}>
-      <T size="xl" bold>Activate MandiMart Pro</T>
+      <T size="xl" bold>Activate Mandi Khata</T>
       <Card>
         <T muted>Lifetime licence</T><T size="xxl" bold>{formatINR(amount, { decimals: false })}</T>
         <T muted>Your code: {profile?.user_code}</T>

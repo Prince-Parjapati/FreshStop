@@ -118,6 +118,62 @@ export class Repo {
     await this.db.run('DELETE FROM transactions WHERE deleted_at IS NOT NULL AND deleted_at < ?', [cutoff]);
   }
 
+
+  // ---------- lists, reports, backup ----------
+  async transactions(opts: { from?: string; to?: string; type?: string; partyId?: string; deleted?: boolean; limit?: number; offset?: number } = {}) {
+    const w: string[] = [opts.deleted ? 't.deleted_at IS NOT NULL' : 't.deleted_at IS NULL']; const p: unknown[] = [];
+    if (opts.from) { w.push('t.date>=?'); p.push(opts.from); } if (opts.to) { w.push('t.date<=?'); p.push(opts.to); }
+    if (opts.type) { w.push('t.type=?'); p.push(opts.type); } if (opts.partyId) { w.push('t.party_id=?'); p.push(opts.partyId); }
+    return this.db.all<any>(`SELECT t.*, a.name party_name, a.phone party_phone FROM transactions t LEFT JOIN accounts a ON a.id=t.party_id WHERE ${w.join(' AND ')} ORDER BY t.date DESC, t.rowid DESC LIMIT ? OFFSET ?`, [...p, opts.limit ?? 50, opts.offset ?? 0]);
+  }
+  async billItems(txnId: string) { return this.db.all<any>('SELECT * FROM bill_items WHERE txn_id=?', [txnId]); }
+  async lastRate(partyId: string, itemName: string) {
+    const r = await this.db.all<{ rate_paise: number; commission_pct: number }>('SELECT b.rate_paise, b.commission_pct FROM bill_items b JOIN transactions t ON t.id=b.txn_id WHERE t.party_id=? AND b.item_name=? AND t.deleted_at IS NULL ORDER BY t.date DESC, t.rowid DESC LIMIT 1', [partyId, itemName]);
+    return r[0] ?? null;
+  }
+  async trialBalance(asOf: string) {
+    const rows = await this.db.all<{ id: string; name: string; type: string }>('SELECT id,name,type FROM accounts WHERE deleted_at IS NULL');
+    const out = [];
+    for (const a of rows) { const b = await this.balance(a.id, asOf); if (b !== 0) out.push({ ...a, dr: b > 0 ? b : 0, cr: b < 0 ? -b : 0 }); }
+    return { rows: out, totalDr: out.reduce((s, r) => s + r.dr, 0), totalCr: out.reduce((s, r) => s + r.cr, 0) };
+  }
+  /** P&L for period: income = commission + delivery recovered + (sales − purchases margin); expenses = EXPENSE accounts. */
+  async profitLoss(from: string, to: string) {
+    const sum = async (type: AccType, side: 'credit_paise' | 'debit_paise') => (await this.db.all<{ s: number }>(`SELECT COALESCE(SUM(l.${side}),0) s FROM transaction_lines l JOIN transactions t ON t.id=l.txn_id JOIN accounts a ON a.id=l.account_id WHERE a.type=? AND t.deleted_at IS NULL AND t.date>=? AND t.date<=?`, [type, from, to]))[0]!.s;
+    const sales = await sum('SALES', 'credit_paise'), purchases = await sum('PURCHASE', 'debit_paise');
+    const commission = await sum('COMMISSION', 'credit_paise'), delivery = await sum('DELIVERY', 'credit_paise'), expenses = await sum('EXPENSE', 'debit_paise');
+    return { sales, purchases, commission, delivery, expenses, net: sales - purchases + commission + delivery - expenses };
+  }
+  async itemWiseSales(from: string, to: string) {
+    return this.db.all<{ item_name: string; qty: number; gross: number }>(`SELECT b.item_name, SUM(b.qty) qty, SUM(b.gross_paise) gross FROM bill_items b JOIN transactions t ON t.id=b.txn_id WHERE t.type='SALE' AND t.deleted_at IS NULL AND t.date>=? AND t.date<=? GROUP BY b.item_name ORDER BY gross DESC`, [from, to]);
+  }
+  async counts() {
+    const n = async (q: string) => (await this.db.all<{ n: number }>(q))[0]!.n;
+    return { vouchers: await n('SELECT COUNT(*) n FROM transactions WHERE deleted_at IS NULL'), parties: await n("SELECT COUNT(*) n FROM accounts WHERE type IN ('CUSTOMER','SUPPLIER') AND deleted_at IS NULL"), items: await n('SELECT COUNT(*) n FROM items WHERE deleted_at IS NULL') };
+  }
+  async company() { return (await this.db.all<any>('SELECT * FROM company WHERE id=1'))[0]; }
+  async saveCompany(c: { name: string; address?: string; phone?: string; gstin?: string; fyStartMonth?: number }) {
+    await this.db.run('UPDATE company SET name=?, address=?, phone=?, gstin=?, fy_start_month=?, updated_at=? WHERE id=1', [c.name, c.address ?? null, c.phone ?? null, c.gstin ?? null, c.fyStartMonth ?? 4, this.now()]);
+  }
+  static TABLES = ['company', 'accounts', 'items', 'transactions', 'transaction_lines', 'bill_items', 'counters'];
+  async exportAll() {
+    const out: Record<string, any[]> = {};
+    for (const t of Repo.TABLES) out[t] = await this.db.all(`SELECT * FROM ${t}`);
+    return { app: 'mandi-khata', version: 1, exportedAt: this.now(), data: out };
+  }
+  async importAll(dump: { app?: string; version?: number; data?: Record<string, any[]> }) {
+    if (dump.app !== 'mandi-khata' || !dump.data) throw new Error('Not a Mandi Khata backup');
+    const data = dump.data;
+    await this.db.tx(async () => {
+      for (const t of [...Repo.TABLES].reverse()) await this.db.run(`DELETE FROM ${t}`);
+      for (const t of Repo.TABLES) for (const row of data[t] ?? []) {
+        const keys = Object.keys(row);
+        if (!keys.every((k) => /^\w+$/.test(k))) throw new Error('Corrupt backup');
+        await this.db.run(`INSERT INTO ${t}(${keys.join(',')}) VALUES (${keys.map(() => '?').join(',')})`, keys.map((k) => row[k]));
+      }
+    });
+  }
+
   /** Ledger with running balance for an account. */
   async ledger(accountId: string, from?: string, to?: string) {
     const open = from ? await this.balance(accountId, prevDay(from)) : (await this.db.all<{ o: number }>('SELECT opening_paise o FROM accounts WHERE id=?', [accountId]))[0]?.o ?? 0;

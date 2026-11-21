@@ -26,7 +26,7 @@ create table plans (
   duration_days int, is_active boolean not null default true, features jsonb not null default '{}',
   created_at timestamptz not null default now(), updated_at timestamptz not null default now()
 );
-insert into plans(name, price_paise, duration_days) values ('Lifetime', 99900, null);
+insert into plans(name, price_paise, duration_days) values ('Lifetime', 350000, null);
 
 create table licences (
   id uuid primary key default gen_random_uuid(),
@@ -90,7 +90,7 @@ create table audit_log (
 );
 create table app_settings (key text primary key, value jsonb not null, updated_at timestamptz not null default now());
 insert into app_settings(key,value) values
- ('upi_id','""'),('upi_name','""'),('bank','{}'),('whatsapp','""'),('maintenance','false'),
+ ('upi_id','"8708502288@upi"'),('upi_name','"Mandi Khata"'),('bank','{}'),('whatsapp','"918708502288"'),('maintenance','false'),
  ('min_version_code','0'),('support_text','""'),('trial_days','0'),('licence_grace_days','14');
 create table discount_codes (
   code text primary key, percent int check (percent between 1 and 100), amount_paise bigint,

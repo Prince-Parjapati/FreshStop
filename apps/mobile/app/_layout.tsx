@@ -6,13 +6,16 @@ import { supabase } from '../src/lib/supabase';
 import { checkLicence } from '../src/lib/licence';
 import { useApp } from '../src/lib/store';
 import { T, Screen } from '../src/ui/kit';
+import AppLock from '../src/ui/AppLock';
+import { useSettings } from '../src/i18n';
 
 const qc = new QueryClient();
 export default function Root() {
   const [ready, setReady] = useState(false);
   const [authed, setAuthed] = useState(false);
   const { gate, setGate } = useApp();
-  const router = useRouter();
+  const router = useRouter(); const hydrate = useSettings((s) => s.hydrate);
+  useEffect(() => { hydrate(); }, []);
   const seg = useSegments();
 
   useEffect(() => {
@@ -37,7 +40,7 @@ export default function Root() {
   return (
     <QueryClientProvider client={qc}>
       <StatusBar style="auto" />
-      <Stack screenOptions={{ headerShown: false }} />
+      <AppLock><Stack screenOptions={{ headerShown: false }} /></AppLock>
     </QueryClientProvider>
   );
 }

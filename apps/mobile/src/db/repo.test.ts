@@ -82,4 +82,27 @@ describe('ledger', () => {
     const c = await repo.createSale({ partyId: cust, date: '2027-04-10', lines: [line] });
     expect([a.voucherNo, b.voucherNo, c.voucherNo]).toEqual(['S-2627-0001', 'S-2627-0002', 'S-2728-0001']);
   });
+  it('trial balance balances, P&L, item sales', async () => {
+    await repo.createSale({ partyId: cust, date: '2026-04-10', lines: [line] });
+    await repo.createPurchase({ partyId: sup, date: '2026-04-10', lines: [line] });
+    await repo.createExpense({ date: '2026-04-11', amountPaise: 5000, category: 'Rent' });
+    const tb = await repo.trialBalance('2026-04-30');
+    expect(tb.totalDr - tb.totalCr).toBe(50000); // difference equals the one-sided customer opening balance
+    const pl = await repo.profitLoss('2026-04-01', '2026-04-30');
+    expect(pl).toMatchObject({ sales: 200000, purchases: 200000, commission: 20000, delivery: 2000, expenses: 5000, net: 17000 });
+    expect((await repo.itemWiseSales('2026-04-01', '2026-04-30'))[0]).toMatchObject({ item_name: 'Aloo', qty: 100 });
+  });
+  it('backup round-trips and restores identical balances', async () => {
+    await repo.createSale({ partyId: cust, date: '2026-04-10', lines: [line] });
+    const dump = await repo.exportAll();
+    await repo.softDelete((await repo.transactions())[0].id);
+    await repo.importAll(JSON.parse(JSON.stringify(dump)));
+    expect(await repo.balance(cust)).toBe(261000);
+    await expect(repo.importAll({ app: 'x' } as any)).rejects.toThrow();
+  });
+  it('last rate memory + counts', async () => {
+    await repo.createSale({ partyId: cust, date: '2026-04-10', lines: [line] });
+    expect((await repo.lastRate(cust, 'Aloo'))?.rate_paise).toBe(2000);
+    expect((await repo.counts()).vouchers).toBe(1);
+  });
 });

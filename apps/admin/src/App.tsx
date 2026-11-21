@@ -33,7 +33,7 @@ export default function App() {
   return (
     <div className="flex min-h-screen">
       <aside className={`fixed inset-y-0 left-0 z-20 w-56 border-r border-slate-200 bg-white p-4 transition dark:border-slate-800 dark:bg-slate-900 md:static md:translate-x-0 ${open ? '' : '-translate-x-full'}`}>
-        <h1 className="mb-6 text-lg font-bold text-brand">MandiMart Admin</h1>
+        <h1 className="mb-6 text-lg font-bold text-brand">Mandi Khata Admin</h1>
         <nav className="flex flex-col gap-1">
           {nav.map(([to, label]) => (
             <NavLink key={to} to={to} end={to === '/'} onClick={() => setOpen(false)}

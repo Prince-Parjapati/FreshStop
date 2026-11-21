@@ -29,7 +29,7 @@ export default function Auth() {
   return (
     <Screen>
       <ScrollView contentContainerStyle={{ gap: 12, paddingTop: 48 }} keyboardShouldPersistTaps="handled">
-        <T size="xxl" bold>MandiMart Pro</T>
+        <T size="xxl" bold>Mandi Khata</T>
         <T muted>{mode === 'login' ? 'Login to continue' : 'Create your shop account'}</T>
         {mode === 'register' && <>
           <Field label="Your name" value={f.fullName} onChangeText={set('fullName')} error={errs.fullName} />

@@ -1,12 +1,12 @@
 import { useCallback, useState } from 'react';
-import { FlatList, View } from 'react-native';
-import { useFocusEffect } from 'expo-router';
+import { FlatList, Pressable, View } from 'react-native';
+import { useFocusEffect, useRouter } from 'expo-router';
 import { searchTerm, toPaise } from '@mandimart/shared';
 import { useRepo } from '../../src/lib/useRepo';
 import { Amount, Button, Card, Field, Screen, T } from '../../src/ui/kit';
 
 export default function Parties() {
-  const repo = useRepo();
+  const repo = useRepo(); const router = useRouter();
   const [list, setList] = useState<any[]>([]); const [q, setQ] = useState('');
   const [name, setName] = useState(''); const [phone, setPhone] = useState(''); const [open, setOpen] = useState(''); const [type, setType] = useState<'CUSTOMER' | 'SUPPLIER'>('CUSTOMER'); const [err, setErr] = useState('');
   const load = useCallback(async () => {
@@ -31,7 +31,7 @@ export default function Parties() {
       <View style={{ height: 8 }} /><Field label="Search" value={q} onChangeText={setQ} />
       <FlatList data={list.filter((p) => !s || p.name.toLowerCase().includes(s))} keyExtractor={(p) => p.id} initialNumToRender={20} windowSize={7}
         contentContainerStyle={{ gap: 8, paddingVertical: 8 }}
-        renderItem={({ item }) => <Card style={{ flexDirection: 'row', justifyContent: 'space-between' }}><View><T bold>{item.name}</T><T size="xs" muted>{item.type}</T></View><Amount paise={item.bal} bold /></Card>} />
+        renderItem={({ item }) => <Pressable accessibilityRole="button" onPress={() => router.push(`/ledger/${item.id}` as any)}><Card style={{ flexDirection: 'row', justifyContent: 'space-between' }}><View><T bold>{item.name}</T><T size="xs" muted>{item.type}</T></View><Amount paise={item.bal} bold /></Card></Pressable>} />
     </Screen>
   );
 }
