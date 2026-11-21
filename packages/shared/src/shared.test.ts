@@ -33,6 +33,11 @@ describe('licence', () => {
     expect(licenceState(c, now - 3 * D, now, now)).toBe('CLOCK_TAMPER');
     expect(licenceState({ ...c, status: 'BLOCKED' }, now, now, now)).toBe('BLOCKED');
   });
+  it('trial token locks when the trial ends', () => {
+    const t = { ...c, status: 'TRIAL' as const, exp: Math.floor((now + 2 * D) / 1000) };
+    expect(licenceState(t, now, now, now)).toBe('OK');
+    expect(licenceState(t, now + 3 * D, now, now + 3 * D)).toBe('EXPIRED');
+  });
 });
 describe('calculator fields', () => {
   it('evaluates expressions safely', () => {

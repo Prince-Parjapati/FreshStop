@@ -31,7 +31,7 @@ export function verifyToken(token: string, pubHex = PUB): LicenceClaims | null {
   } catch { return null; }
 }
 
-export type Gate = { kind: 'NO_LICENCE'; serverStatus?: string } | { kind: LicenceState; claims: LicenceClaims; daysLeft: number };
+export type Gate = { kind: 'NO_LICENCE'; serverStatus?: string; trialEnded?: boolean } | { kind: LicenceState; claims: LicenceClaims; daysLeft: number };
 
 /** Refresh from server if online; otherwise evaluate the cached token. */
 export async function checkLicence(): Promise<Gate> {
@@ -46,7 +46,7 @@ export async function checkLicence(): Promise<Gate> {
         await SecureStore.setItemAsync(K.verified, String(now));
       } else if (data.status && data.status !== 'ACTIVE') {
         if (data.status === 'BLOCKED' || data.status === 'EXPIRED') { /* fall through to cached claims with server status */ }
-        else return { kind: 'NO_LICENCE', serverStatus: data.status };
+        else return { kind: 'NO_LICENCE', serverStatus: data.status, trialEnded: !!data.trial_ended };
       }
     }
   } catch { /* offline: use cache */ }
@@ -60,3 +60,9 @@ export async function checkLicence(): Promise<Gate> {
   return { kind: st, claims, daysLeft: Math.max(0, Math.ceil(claims.graceDays - (now - verified) / 86400000)) };
 }
 export const clearLicence = async () => { for (const k of [K.token, K.verified]) await SecureStore.deleteItemAsync(k); };
+
+/** Trial info derived from the gate (null when the user holds a paid licence). */
+export function trialInfo(g: Gate | null): { daysLeft: number; endsAt: number } | null {
+  if (!g || g.kind === 'NO_LICENCE' || g.claims.status !== 'TRIAL' || g.claims.exp == null) return null;
+  return { endsAt: g.claims.exp * 1000, daysLeft: Math.max(0, Math.ceil((g.claims.exp * 1000 - Date.now()) / 86400000)) };
+}

@@ -4,7 +4,7 @@ import { Stack, useRouter, useSegments } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { supabase } from '../src/lib/supabase';
-import { checkLicence } from '../src/lib/licence';
+import { checkLicence, trialInfo } from '../src/lib/licence';
 import { useApp } from '../src/lib/store';
 import { T, Screen } from '../src/ui/kit';
 import AppLock from '../src/ui/AppLock';
@@ -34,8 +34,10 @@ function Root() {
     if (!authed) { if (top !== 'auth') router.replace('/auth'); return; }
     if (!gate) return;
     const ok = gate.kind === 'OK' || gate.kind === 'WARN';
-    if (ok) { if (top === 'auth' || top === 'pay' || top === 'locked') router.replace('/(tabs)'); }
-    else if (gate.kind === 'NO_LICENCE') { if (top !== 'pay') router.replace('/pay'); }
+    const trial = !!trialInfo(gate);
+    const trialOver = gate.kind === 'EXPIRED' && gate.claims.status === 'TRIAL';
+    if (ok) { if (top === 'auth' || top === 'locked' || (top === 'pay' && !trial)) router.replace('/(tabs)'); }
+    else if (gate.kind === 'NO_LICENCE' || trialOver) { if (top !== 'pay') router.replace('/pay'); }
     else if (top !== 'locked') router.replace('/locked');
   }, [ready, authed, gate, seg]);
 

@@ -35,11 +35,22 @@
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#16A34A",
         "monochromeImage": "./assets/monochrome-icon.png"
-      }
+      },
+      "permissions": [
+        "android.permission.READ_CONTACTS",
+        "android.permission.WRITE_CONTACTS"
+      ]
     },
     "experiments": {
       "typedRoutes": false
     },
-    "icon": "./assets/icon.png"
+    "icon": "./assets/icon.png",
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "a3e20aa3-ab3d-49a2-970e-ea8014e995c1"
+      }
+    },
+    "owner": "veg-mart-organization"
   }
 }

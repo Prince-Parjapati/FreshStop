@@ -23,15 +23,21 @@ Deno.serve(async (req) => {
   const { data: dev } = await sb.from('devices').select('is_active').eq('user_id', u.user.id).eq('device_id_hash', deviceHash).maybeSingle();
   const { data: gs } = await sb.from('public_settings').select('value').eq('key', 'licence_grace_days').maybeSingle();
 
-  let status: 'ACTIVE' | 'BLOCKED' | 'EXPIRED' | 'NONE' = 'NONE';
+  // Free trial: started once per account/device by the start_trial RPC.
+  const { data: tr } = await sb.rpc('start_trial', { p_hash: deviceHash });
+  const trialEnds: string | null = tr?.trial_ends_at ?? null;
+  const trialLive = !!trialEnds && new Date(trialEnds) > new Date();
+
+  let status: 'ACTIVE' | 'TRIAL' | 'BLOCKED' | 'EXPIRED' | 'NONE' = 'NONE';
   if (prof?.status === 'BLOCKED' || lic?.status === 'REVOKED') status = 'BLOCKED';
   else if (lic?.status === 'EXPIRED' || (lic?.expires_at && new Date(lic.expires_at) < new Date())) status = 'EXPIRED';
   else if (lic && prof?.status === 'ACTIVE' && dev?.is_active) status = 'ACTIVE';
-  if (status === 'NONE') return json({ status: prof?.status ?? 'PENDING' });
+  else if (!lic && prof?.status !== 'ACTIVE' && trialLive && dev?.is_active) status = 'TRIAL';
+  if (status === 'NONE') return json({ status: prof?.status ?? 'PENDING', trial_ended: !!trialEnds && !trialLive, trial_ends_at: trialEnds });
 
   const claims = {
-    uid: u.user.id, plan: lic?.plans?.name ?? 'Lifetime', iat: Math.floor(Date.now() / 1000),
-    exp: lic?.expires_at ? Math.floor(new Date(lic.expires_at).getTime() / 1000) : null,
+    uid: u.user.id, plan: status === 'TRIAL' ? 'Free trial' : (lic?.plans?.name ?? 'Lifetime'), iat: Math.floor(Date.now() / 1000),
+    exp: status === 'TRIAL' ? Math.floor(new Date(trialEnds!).getTime() / 1000) : lic?.expires_at ? Math.floor(new Date(lic.expires_at).getTime() / 1000) : null,
     dev: deviceHash, graceDays: Number(gs?.value ?? 14), status,
   };
   const seed = Uint8Array.from(atob(Deno.env.get('LICENCE_PRIVATE_KEY')!), (c) => c.charCodeAt(0));

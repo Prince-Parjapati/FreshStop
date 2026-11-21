@@ -1,6 +1,6 @@
 export interface LicenceClaims {
   uid: string; plan: string; iat: number; exp: number | null; dev: string;
-  graceDays: number; status: 'ACTIVE' | 'BLOCKED' | 'EXPIRED';
+  graceDays: number; status: 'ACTIVE' | 'TRIAL' | 'BLOCKED' | 'EXPIRED';
 }
 export type LicenceState = 'OK' | 'WARN' | 'LOCKED_OFFLINE' | 'BLOCKED' | 'EXPIRED' | 'CLOCK_TAMPER';
 const DAY = 86400000;

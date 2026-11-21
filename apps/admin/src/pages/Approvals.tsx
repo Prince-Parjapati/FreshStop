@@ -3,11 +3,12 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { formatINR } from '@mandimart/shared';
 import { supabase } from '../lib/supabase';
 import { Initials, PageHead } from '../lib/ui';
+import { useLive } from '../lib/live';
 
 export default function Approvals() {
-  const qc = useQueryClient();
+  const qc = useQueryClient(); useLive(['payment_requests'], ['approvals', 'dash']);
   const { data = [], isLoading } = useQuery({
-    queryKey: ['approvals'], refetchInterval: 15000,
+    queryKey: ['approvals'], refetchInterval: 5000, refetchIntervalInBackground: true, refetchOnWindowFocus: true, staleTime: 0,
     queryFn: async () => {
       const { data, error } = await supabase.from('payment_requests').select('*, profiles(full_name,shop_name,phone,city,user_code), plans(price_paise)').in('status', ['SUBMITTED', 'INFO_NEEDED']).order('created_at');
       if (error) throw error; return data as any[];

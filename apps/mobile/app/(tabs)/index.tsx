@@ -6,6 +6,7 @@ import { Ionicons } from '@expo/vector-icons';
 import * as Application from 'expo-application';
 import { formatINR } from '@mandimart/shared';
 import { useApp } from '../../src/lib/store';
+import { trialInfo } from '../../src/lib/licence';
 import { today, useRepo } from '../../src/lib/useRepo';
 import { supabase } from '../../src/lib/supabase';
 import { publicSettings } from '../../src/lib/shop';
@@ -48,6 +49,12 @@ export default function Home() {
         <View style={{ paddingHorizontal: 16, marginTop: -44, gap: 16 }}>
           {maint && <Banner tone="error" text="Server maintenance in progress. App works offline." />}
           {ann.map((a) => <Banner key={a.id} text={`${a.title}: ${a.body}`} />)}
+          {(() => { const tr = trialInfo(gate); return tr ? (
+            <Pressable accessibilityRole="button" accessibilityLabel="Buy lifetime licence" onPress={go('/pay')} style={{ backgroundColor: tr.daysLeft <= 1 ? c.danger : c.hero, borderRadius: 18, padding: 14, flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+              <IconBadge name="time" color="#fff" size={40} />
+              <View style={{ flex: 1 }}><Text style={{ color: '#fff', fontWeight: '800', fontSize: 15 }}>{tr.daysLeft <= 1 ? 'Free trial ends today' : `Free trial: ${tr.daysLeft} days left`}</Text><Text style={{ color: '#FFFFFFCC', fontSize: 12 }}>Pay once to keep using Mandi Khata after the trial.</Text></View>
+              <Ionicons name="chevron-forward" size={20} color="#fff" />
+            </Pressable>) : null; })()}
           {gate?.kind === 'WARN' && <Banner text={`Connect to internet within ${(gate as any).daysLeft} days to keep the app active.`} />}
           <Card style={{ flexDirection: 'row', paddingVertical: 18 }}>
             {[[t('payable'), d?.payables, c.danger, '/outstanding'], [t('cashbank'), d?.cashBalance, c.text, undefined], [t('sales'), d?.todaySales, c.primary, '/list/sales']].map(([l, v, col, to], i) => (

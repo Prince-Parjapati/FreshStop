@@ -2,12 +2,14 @@ import { useCallback, useEffect, useState } from 'react';
 import { Linking, ScrollView, View } from 'react-native';
 import { formatINR, paymentSubmitSchema } from '@mandimart/shared';
 import { supabase } from '../src/lib/supabase';
-import { checkLicence } from '../src/lib/licence';
+import { useRouter } from 'expo-router';
+import { checkLicence, trialInfo } from '../src/lib/licence';
 import { useApp } from '../src/lib/store';
 import { Banner, Button, Card, Field, Screen, T } from '../src/ui/kit';
 
 export default function Pay() {
-  const setGate = useApp((s) => s.setGate);
+  const setGate = useApp((s) => s.setGate); const gate = useApp((s) => s.gate); const router = useRouter(); const trial = trialInfo(gate);
+  const ended = !trial && (gate as any)?.kind !== 'OK' && (gate as any)?.kind !== 'WARN';
   const [st, setSt] = useState<{ profile?: any; plan?: any; settings: Record<string, any>; last?: any }>({ settings: {} });
   const [code, setCode] = useState(''); const [quote, setQuote] = useState<{ amount: number; note?: string } | null>(null);
   const [utr, setUtr] = useState(''); const [payer, setPayer] = useState(''); const [err, setErr] = useState(''); const [busy, setBusy] = useState(false);
@@ -46,7 +48,9 @@ export default function Pay() {
   };
   return (
     <Screen top><ScrollView contentContainerStyle={{ gap: 12, paddingTop: 40 }}>
-      <T size="xl" bold>Activate Mandi Khata</T>
+      <T size="xl" bold>{trial ? 'Keep Mandi Khata forever' : 'Activate Mandi Khata'}</T>
+      {trial && <Banner text={`Free trial: ${trial.daysLeft} day${trial.daysLeft === 1 ? '' : 's'} left. Pay once now and keep all your data and entries.`} />}
+      {ended && <Banner tone="error" text="Your free trial has ended. Pay once to unlock the app — your data on this phone is safe and will be there when you unlock." />}
       <Card>
         <T muted>Lifetime licence</T><T size="xxl" bold>{formatINR(amount, { decimals: false })}</T>
         <T muted>Your code: {profile?.user_code}</T>
@@ -67,6 +71,7 @@ export default function Pay() {
         </>
       )}
       {!!settings.whatsapp && <Button kind="ghost" label="Contact admin on WhatsApp" onPress={() => Linking.openURL(`https://wa.me/${settings.whatsapp}`)} />}
+      {trial && <Button kind="ghost" label="Continue free trial" onPress={() => router.replace('/(tabs)')} />}
       <View><Button kind="ghost" label="Logout" onPress={() => supabase.auth.signOut()} /></View>
     </ScrollView></Screen>
   );

@@ -15,6 +15,7 @@ import Settings from './pages/Settings';
 import Audit from './pages/Audit';
 import Support from './pages/Support';
 import Codes from './pages/Codes';
+import UserDetail from './pages/UserDetail';
 
 type NavItem = [string, string, LucideIcon];
 const groups: [string, NavItem[]][] = [
@@ -39,7 +40,7 @@ export default function App() {
   if (session === undefined) return <p className="p-8 text-slate-500">Loading…</p>;
   if (!session || isAdmin === false) return <Login denied={isAdmin === false} />;
   if (isAdmin === null) return <p className="p-8 text-slate-500">Checking access…</p>;
-  const title = flat.find(([to]) => to === loc.pathname)?.[1] ?? 'Dashboard';
+  const title = flat.find(([to]) => to === loc.pathname)?.[1] ?? (loc.pathname.startsWith('/users/') ? 'Customer' : 'Dashboard');
   return (
     <div className="flex min-h-screen">
       {open && <div className="fixed inset-0 z-10 bg-black/40 md:hidden" onClick={() => setOpen(false)} />}
@@ -64,7 +65,7 @@ export default function App() {
         <main className="p-4 md:p-8">
           <Routes>
             <Route path="/" element={<Dashboard />} /><Route path="/approvals" element={<Approvals />} />
-            <Route path="/users" element={<Users />} /><Route path="/payments" element={<Payments />} />
+            <Route path="/users" element={<Users />} /><Route path="/users/:id" element={<UserDetail />} /><Route path="/payments" element={<Payments />} />
             <Route path="/announcements" element={<Announcements />} /><Route path="/releases" element={<Releases />} />
             <Route path="/support" element={<Support />} /><Route path="/codes" element={<Codes />} />
             <Route path="/settings" element={<Settings />} /><Route path="/audit" element={<Audit />} />
