@@ -3,7 +3,7 @@ import { FlatList, Pressable, View } from 'react-native';
 import { Stack, useFocusEffect, useRouter } from 'expo-router';
 import { formatINR } from '@mandimart/shared';
 import { today, useRepo } from '../src/lib/useRepo';
-import { sharePdf } from '../src/lib/share';
+import { printHtml, sharePdf } from '../src/lib/share';
 import { slipHtml, waLink } from '../src/lib/slip';
 import { publicSettings } from '../src/lib/shop';
 import { Banner, Button, Card, Screen, T } from '../src/ui/kit';
@@ -19,10 +19,10 @@ export default function DayBook() {
     setRows(await repo.transactions({ from: d.toISOString().slice(0, 10), to: today(), limit: 200 }));
   }, [repo, days]);
   useFocusEffect(useCallback(() => { load(); }, [load]));
-  const slip = async (r: any, wa = false) => {
+  const slip = async (r: any, wa = false, print = false) => {
     const co = await repo!.company(); const s = await publicSettings(); const items = await repo!.billItems(r.id);
     const html = slipHtml({ shop: { name: co?.name, address: co?.address, phone: co?.phone, upi: s.upi_id }, txn: r, items, party: r.party_name ?? '', prevBalance: r.prev_balance_paise });
-    if (wa) Linking.openURL(waLink(r.party_phone, `${r.voucher_no} ${r.party_name}: ${formatINR(r.total_paise)}`)); else await sharePdf(html, r.voucher_no);
+    if (print) await printHtml(html); else if (wa) Linking.openURL(waLink(r.party_phone, `${r.voucher_no} ${r.party_name}: ${formatINR(r.total_paise)}`)); else await sharePdf(html, r.voucher_no);
   };
   const del = async () => { for (const id of sel) await repo!.softDelete(id); setSel(new Set()); setMsg(`${sel.size} moved to Recycle Bin (kept 30 days)`); load(); };
   return (
@@ -37,7 +37,7 @@ export default function DayBook() {
           <Pressable onLongPress={() => setSel(new Set(sel).add(r.id))} onPress={() => sel.size && setSel((p) => { const n = new Set(p); n.has(r.id) ? n.delete(r.id) : n.add(r.id); return n; })}>
             <Card style={{ borderColor: sel.has(r.id) ? '#16A34A' : undefined, borderWidth: sel.has(r.id) ? 2 : 1, gap: 4 }}>
               <T bold>{r.voucher_no} · {r.type}</T><T muted>{r.date} · {r.party_name ?? r.narration ?? ''}</T><T size="lg" bold>{formatINR(r.total_paise)}</T>
-              <View style={{ flexDirection: 'row', gap: 8 }}><View style={{ flex: 1 }}><Button kind="ghost" label={t('share')} onPress={() => slip(r)} /></View><View style={{ flex: 1 }}><Button kind="ghost" label="WhatsApp" onPress={() => slip(r, true)} /></View></View>
+              <View style={{ flexDirection: 'row', gap: 8 }}><View style={{ flex: 1 }}><Button kind="ghost" label={t('share')} onPress={() => slip(r)} /></View><View style={{ flex: 1 }}><Button kind="ghost" label="WhatsApp" onPress={() => slip(r, true)} /></View><View style={{ flex: 1 }}><Button kind="ghost" label="Print" onPress={() => slip(r, false, true)} /></View></View>
               {['SALE', 'PURCHASE', 'RECEIPT', 'PAYMENT'].includes(r.type) && <View style={{ flexDirection: 'row', gap: 8 }}><View style={{ flex: 1 }}><Button kind="ghost" label="Edit" onPress={() => router.push(`/(tabs)/entry?edit=${r.id}` as any)} /></View><View style={{ flex: 1 }}><Button kind="ghost" label="Duplicate" onPress={() => router.push(`/(tabs)/entry?dup=${r.id}` as any)} /></View></View>}
             </Card></Pressable>)} />
     </Screen>

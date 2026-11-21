@@ -11,3 +11,5 @@ export async function shareText(fileName: string, content: string, mime = 'text/
   const p = FS.cacheDirectory + fileName; await FS.writeAsStringAsync(p, content); await Sharing.shareAsync(p, { mimeType: mime });
 }
 export const toCsv = (rows: Record<string, unknown>[]) => { if (!rows.length) return ''; const k = Object.keys(rows[0]!); return [k.join(','), ...rows.map((r) => k.map((c) => JSON.stringify(r[c] ?? '')).join(','))].join('\n'); };
+
+export const printHtml = (html: string) => Print.printAsync({ html });

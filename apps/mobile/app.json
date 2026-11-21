@@ -1,9 +1,37 @@
 {
   "expo": {
-    "name": "Mandi Khata", "slug": "mandi-khata", "version": "1.0.0", "scheme": "mandimart",
-    "orientation": "portrait", "userInterfaceStyle": "automatic", "newArchEnabled": true,
-    "plugins": ["expo-router", "expo-secure-store", "expo-sqlite"],
-    "android": { "package": "com.mandimart.pro", "versionCode": 1, "allowBackup": false },
-    "experiments": { "typedRoutes": false }
+    "name": "Mandi Khata",
+    "slug": "mandi-khata",
+    "version": "1.0.0",
+    "scheme": "mandimart",
+    "orientation": "portrait",
+    "userInterfaceStyle": "automatic",
+    "newArchEnabled": true,
+    "plugins": [
+      "expo-router",
+      "expo-secure-store",
+      "expo-sqlite",
+      [
+        "expo-splash-screen",
+        {
+          "image": "./assets/splash-icon.png",
+          "backgroundColor": "#16A34A",
+          "imageWidth": 200
+        }
+      ]
+    ],
+    "android": {
+      "package": "com.mandimart.pro",
+      "versionCode": 1,
+      "allowBackup": false,
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#16A34A"
+      }
+    },
+    "experiments": {
+      "typedRoutes": false
+    },
+    "icon": "./assets/icon.png"
   }
 }

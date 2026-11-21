@@ -2,15 +2,7 @@
   "extends": "expo/tsconfig.base",
   "compilerOptions": {
     "strict": true,
-    "skipLibCheck": true,
-    "paths": {
-      "react": [
-        "./node_modules/@types/react"
-      ],
-      "react/*": [
-        "./node_modules/@types/react/*"
-      ]
-    }
+    "skipLibCheck": true
   },
   "include": [
     "**/*.ts",
