@@ -290,7 +290,7 @@ export class Repo {
     const open = from ? await this.balance(accountId, prevDay(from)) : (await this.db.all<{ o: number }>('SELECT opening_paise o FROM accounts WHERE id=?', [accountId]))[0]?.o ?? 0;
     const rows = await this.db.all<any>(
       `SELECT t.id, t.date, t.type, t.voucher_no, t.narration, l.debit_paise dr, l.credit_paise cr FROM transaction_lines l JOIN transactions t ON t.id=l.txn_id
-       WHERE l.account_id=? AND t.deleted_at IS NULL ${from ? 'AND t.date>=?' : ''} ${to ? 'AND t.date<=?' : ''} ORDER BY t.date, t.voucher_no`,
+       WHERE l.account_id=? AND t.deleted_at IS NULL ${from ? 'AND t.date>=?' : ''} ${to ? 'AND t.date<=?' : ''} ORDER BY t.date, t.rowid`,
       [accountId, ...(from ? [from] : []), ...(to ? [to] : [])]);
     let run = open;
     return { opening: open, rows: rows.map((r) => ({ ...r, balance: (run += r.dr - r.cr) })), closing: run };

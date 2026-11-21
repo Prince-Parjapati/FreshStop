@@ -35,7 +35,7 @@ export default function PartyForm() {
     try {
       const open = Math.abs(toPaise(evaluateMath(f.opening))) * (side === 'CR' ? -1 : 1);
       const input = { name, nameHi: f.nameHi, type, phone: f.phone ? f.phone.replace(/\D/g, '').slice(-10) : undefined, address: f.address, city: f.city, gstin: f.gstin.toUpperCase(), pan: f.pan.toUpperCase(), bankName: f.bankName, bankAccountNo: f.bankAccountNo, bankIfsc: f.bankIfsc.toUpperCase(), openingPaise: open, commissionPct: com, creditDays: Number(f.creditDays) || undefined, creditLimitPaise: f.creditLimit ? toPaise(f.creditLimit) : undefined };
-      if (id) await repo!.updateAccount(id, input); else { const dup = (await repo!.listAccounts({ search: name })).find((a: any) => a.name.toLowerCase() === name.toLowerCase()); if (dup) { setBusy(false); return setErr('A party with this name already exists'); } await repo!.addAccount(input); }
+      if (id) await repo!.updateAccount(id, input); else { const dup = (await repo!.listAccounts({ search: name })).find((a: any) => a.name.toLowerCase() === name.toLowerCase()); if (dup) { setBusy(false); return setErr('A party with this name already exists'); } const nid = await repo!.addAccount(input); if (back === '1') return router.navigate({ pathname: '/(tabs)/entry', params: { party: nid } } as any); }
       router.back();
     } catch (e: any) { setErr(e.message); setBusy(false); }
   };

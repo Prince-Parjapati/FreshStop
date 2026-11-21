@@ -8,11 +8,17 @@ export async function getRepo(deviceId = 'local'): Promise<Repo> {
   if (repo) return repo;
   const raw = await SQLite.openDatabaseAsync('mandimart.db');
   await raw.execAsync('PRAGMA journal_mode = WAL; PRAGMA foreign_keys = ON;');
+  // Inside withExclusiveTransactionAsync every statement must go through the transaction's own connection.
+  let cur: Pick<SQLite.SQLiteDatabase, 'execAsync' | 'runAsync' | 'getAllAsync'> = raw;
   const db: Db = {
-    exec: (s) => raw.execAsync(s),
-    run: async (s, p = []) => { await raw.runAsync(s, p as any[]); },
-    all: (s, p = []) => raw.getAllAsync(s, p as any[]) as Promise<any[]>,
-    tx: async (fn) => { let r!: any; await raw.withExclusiveTransactionAsync(async () => { r = await fn(); }); return r; },
+    exec: (q) => cur.execAsync(q),
+    run: async (q, p = []) => { await cur.runAsync(q, p as any[]); },
+    all: (q, p = []) => cur.getAllAsync(q, p as any[]) as Promise<any[]>,
+    tx: async (fn) => {
+      let r!: any;
+      await raw.withExclusiveTransactionAsync(async (txn) => { cur = txn; try { r = await fn(); } finally { cur = raw; } });
+      return r;
+    },
   };
   await migrate(db);
   repo = new Repo(db, deviceId);

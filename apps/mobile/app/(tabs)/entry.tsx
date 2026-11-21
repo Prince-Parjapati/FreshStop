@@ -129,12 +129,12 @@ export default function Entry() {
             {!!l.itemName && <T size="sm" muted>{l.itemName}</T>}
             <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 6 }}>{UNITS.map((u) => <Pressable key={u} onPress={() => patchLine(i, { unit: u })} style={{ paddingHorizontal: 12, minHeight: 40, justifyContent: 'center', borderRadius: 20, backgroundColor: l.unit === u ? c.primary : c.surface, borderWidth: 1, borderColor: c.border }}><Text style={{ color: l.unit === u ? '#fff' : c.text }}>{u}</Text></Pressable>)}</ScrollView>
             <View style={{ flexDirection: 'row', gap: 8 }}>
-              <View style={{ flex: 1 }}><View style={{ flexDirection: 'row', justifyContent: 'space-between' }}><T size="sm" muted>Qty{hint(l.qty)}</T>{plus(i, 'qty')}</View><Field label="" accessibilityLabel="Quantity" keyboardType="numbers-and-punctuation" value={l.qty} onChangeText={(v) => setLine(i, 'qty', clean(v))} placeholder="0" /></View>
-              <View style={{ flex: 1 }}><View style={{ flexDirection: 'row', justifyContent: 'space-between' }}><T size="sm" muted>Rate ₹{hint(l.rate)}</T>{plus(i, 'rate')}</View><Field label="" accessibilityLabel="Rate" keyboardType="numbers-and-punctuation" value={l.rate} onChangeText={(v) => setLine(i, 'rate', clean(v))} placeholder="0" /></View>
+              <View style={{ flex: 1 }}><View style={{ flexDirection: 'row', justifyContent: 'space-between' }}><T size="sm" muted>Qty{hint(l.qty)}</T>{plus(i, 'qty')}</View><Field label=" " accessibilityLabel="Quantity" keyboardType="numbers-and-punctuation" value={l.qty} onChangeText={(v) => setLine(i, 'qty', clean(v))} placeholder="0" /></View>
+              <View style={{ flex: 1 }}><View style={{ flexDirection: 'row', justifyContent: 'space-between' }}><T size="sm" muted>Rate ₹{hint(l.rate)}</T>{plus(i, 'rate')}</View><Field label=" " accessibilityLabel="Rate" keyboardType="numbers-and-punctuation" value={l.rate} onChangeText={(v) => setLine(i, 'rate', clean(v))} placeholder="0" /></View>
             </View>
-            <Field label="Total amount ₹ (edit to back-calculate rate)" keyboardType="decimal-pad" value={l.total} onChangeText={(v) => setLine(i, 'total', clean(v))} placeholder="0" />
+            <Field label="Total amount ₹ (edit to change rate)" keyboardType="decimal-pad" value={l.total} onChangeText={(v) => setLine(i, 'total', clean(v))} placeholder="0" />
             <View style={{ flexDirection: 'row', gap: 8 }}>
-              <View style={{ flex: 1 }}><Field label="Commission % (50+20 = successive)" keyboardType="numbers-and-punctuation" value={l.com} onChangeText={(v) => patchLine(i, { com: v.replace(/[^0-9.+]/g, '') })} placeholder="0" /></View>
+              <View style={{ flex: 1 }}><Field label="Commission %" keyboardType="numbers-and-punctuation" value={l.com} onChangeText={(v) => patchLine(i, { com: v.replace(/[^0-9.+]/g, '') })} placeholder="0" /></View>
               <View style={{ flex: 1 }}><Field label="Delivery ₹" keyboardType="numbers-and-punctuation" value={l.del} onChangeText={(v) => patchLine(i, { del: clean(v) })} placeholder="0" /></View>
             </View>
             <T muted>Line total: {formatINR(calc[i]!.net)}</T>
