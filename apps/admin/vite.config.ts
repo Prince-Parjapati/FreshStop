@@ -1,3 +1,4 @@
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
-export default defineConfig({ plugins: [react()] });
+// base './' + HashRouter so the build works on any static host / sub-path (GitHub Pages, Cloudflare Pages, Netlify).
+export default defineConfig({ base: './', plugins: [react()] });

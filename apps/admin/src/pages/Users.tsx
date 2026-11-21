@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase, csv } from '../lib/supabase';
+import { Initials, PageHead, Status } from '../lib/ui';
 export default function Users() {
   const qc = useQueryClient(); const [q, setQ] = useState(''); const [status, setStatus] = useState('');
   const { data = [], isLoading } = useQuery({ queryKey: ['users', q, status], queryFn: async () => {
@@ -20,9 +21,9 @@ export default function Users() {
       <div className="card overflow-x-auto p-0">{isLoading ? <p className="p-4">Loading…</p> : (
         <table className="w-full"><thead><tr><th className="th">User</th><th className="th">City</th><th className="th">Status</th><th className="th">Last seen</th><th className="th">Ver</th><th className="th">Usage</th><th className="th"></th></tr></thead>
           <tbody>{data.map((u) => (
-            <tr key={u.id} className="border-t border-slate-100 dark:border-slate-800">
-              <td className="td"><b>{u.shop_name}</b><br /><span className="text-slate-500">{u.full_name} · {u.phone} · {u.user_code}</span></td>
-              <td className="td">{u.city}</td><td className="td">{u.status}</td>
+            <tr key={u.id} className="tr">
+              <td className="td"><div className="flex items-center gap-3"><Initials name={u.shop_name || u.full_name} /><div><b>{u.shop_name}</b><br /><span className="text-slate-500">{u.full_name} · {u.phone} · {u.user_code}</span></div></div></td>
+              <td className="td">{u.city}</td><td className="td"><Status s={u.status} /></td>
               <td className="td">{u.last_seen_at ? new Date(u.last_seen_at).toLocaleDateString() : '—'}</td><td className="td">{u.app_version ?? '—'}</td>
               <td className="td">{u.usage_stats ? `${u.usage_stats.vouchers_count}v ${u.usage_stats.parties_count}p ${u.usage_stats.items_count}i` : '—'}</td>
               <td className="td"><div className="flex gap-1">
