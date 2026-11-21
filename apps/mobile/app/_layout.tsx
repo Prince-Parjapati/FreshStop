@@ -1,3 +1,4 @@
+import { Sentry } from '../src/lib/sentry';
 import { useEffect, useState } from 'react';
 import { Stack, useRouter, useSegments } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
@@ -10,7 +11,7 @@ import AppLock from '../src/ui/AppLock';
 import { useSettings } from '../src/i18n';
 
 const qc = new QueryClient();
-export default function Root() {
+function Root() {
   const [ready, setReady] = useState(false);
   const [authed, setAuthed] = useState(false);
   const { gate, setGate } = useApp();
@@ -44,3 +45,5 @@ export default function Root() {
     </QueryClientProvider>
   );
 }
+
+export default Sentry.wrap(Root);

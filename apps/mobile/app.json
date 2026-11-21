@@ -18,7 +18,8 @@
           "backgroundColor": "#16A34A",
           "imageWidth": 200
         }
-      ]
+      ],
+      "@sentry/react-native"
     ],
     "android": {
       "package": "com.mandimart.pro",
