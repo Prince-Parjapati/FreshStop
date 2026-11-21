@@ -1,5 +1,5 @@
 name: Release APK
-on: { push: { tags: ['v*'] } }
+on: { workflow_dispatch: {} }  # APKs are built locally and attached to releases by hand; this needs signing secrets
 jobs:
   apk:
     runs-on: ubuntu-latest
