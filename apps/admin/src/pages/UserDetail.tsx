@@ -42,7 +42,6 @@ export default function UserDetail() {
           <div className="mt-2 flex flex-wrap gap-2"><Status s={p.status} /><span className={tr.tone}>{tr.label}</span></div></div>
         <div className="flex flex-wrap gap-2">
           {p.phone && <a className="btn-ghost" target="_blank" rel="noreferrer" href={`https://wa.me/91${String(p.phone).replace(/\D/g, '').slice(-10)}?text=${waText}`}><MessageCircle size={16} />WhatsApp</a>}
-          {[1, 3, 7].map((d) => <button key={d} className="btn-ghost" onClick={() => act.mutate(() => supabase.rpc('admin_extend_trial', { p_user: id, p_days: d }))}>+{d}d trial</button>)}
           {p.status === 'BLOCKED' ? <button className="btn-ghost" onClick={() => act.mutate(() => supabase.rpc('set_user_status', { p_user: id, p_status: 'ACTIVE', p_reason: null }))}>Unblock</button>
             : <button className="btn-danger" onClick={() => { const r = prompt('Block reason?'); if (r) act.mutate(() => supabase.rpc('set_user_status', { p_user: id, p_status: 'BLOCKED', p_reason: r })); }}>Block</button>}
           <button className="btn-ghost" onClick={() => act.mutate(() => supabase.from('devices').update({ is_active: false }).eq('user_id', id))}>Reset devices</button>

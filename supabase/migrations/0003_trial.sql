@@ -68,17 +68,6 @@ begin
   return jsonb_build_object('trial_ends_at', p.trial_ends_at, 'trial_started_at', p.trial_started_at);
 end $$;
 
-create or replace function admin_extend_trial(p_user uuid, p_days int) returns void
-language plpgsql security definer set search_path = public as $$
-begin
-  if not is_admin() then raise exception 'forbidden'; end if;
-  if p_days < 1 or p_days > 365 then raise exception 'bad days'; end if;
-  perform set_config('app.trusted', '1', true);
-  update profiles set trial_started_at = coalesce(trial_started_at, now()),
-    trial_ends_at = greatest(coalesce(trial_ends_at, now()), now()) + make_interval(days => p_days) where id = p_user;
-  insert into audit_log(actor_id, action, entity, entity_id, meta) values (auth.uid(), 'extend_trial', 'profiles', p_user::text, jsonb_build_object('days', p_days));
-end $$;
-
 -- heartbeat now also counts sessions and active days
 create or replace function heartbeat(p_version text, p_vouchers int, p_parties int, p_items int, p_backup timestamptz default null) returns jsonb
 language plpgsql security definer set search_path = public as $$
